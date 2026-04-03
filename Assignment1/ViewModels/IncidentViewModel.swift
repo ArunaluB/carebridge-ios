@@ -146,7 +146,7 @@ class IncidentViewModel {
         let cleanedLocation = location.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanedAction = immediateActionTaken.trimmingCharacters(in: .whitespacesAndNewlines)
-        let cleanWitnesses = witnesses.filter { !-e.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        let cleanWitnesses = witnesses.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         
         let incident = Incident(
             id: editingIncident?.id ?? UUID(),
