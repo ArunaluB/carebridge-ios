@@ -23,3 +23,9 @@ Pods/
 
 # Carthage
 Carthage/Build/
+
+# macOS
+.DS_Store
+
+# Local SwiftPM/Xcode workspace artifacts
+.swiftpm/xcode/package.xcworkspace/xcuserdata/
