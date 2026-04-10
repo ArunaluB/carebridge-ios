@@ -1,18 +1,26 @@
-// Dashboard view model and supporting recommendation models.
+// NurseryConnect | DashboardViewModel.swift
+// All computed properties derive from DataManager in real time — zero hardcoded values.
+// Refreshed on .onAppear and on Notification.entrySaved from DiaryEntryFormView.
+//
+// MODELS ADDED (local to this file):
+//   DashboardRecommendation  — actionable gap detected in today's diary
+//   AllergyAlertItem         — child with allergy who had a meal today
+//   RecommendationType       — missing wellbeing, meal, nappy, sleep; allergy alert
+//   RecommendationPriority   — high (3), medium (2), low (1)
 
 import Foundation
 import SwiftUI
 
 // MARK: - Supporting Models
 
-/// Action needed for today's records.
+/// Represents an actionable gap in a child's daily records.
 struct DashboardRecommendation: Identifiable {
     let id = UUID()
     let type: RecommendationType
     let child: ChildProfile
     let message: String
     let priority: RecommendationPriority
-    let actionType: DiaryEntryType
+    let actionType: DiaryEntryType  // Tap "Log Now" → opens form pre-filled with this type
 
     enum RecommendationPriority: Int, Comparable {
         case low    = 1
@@ -55,7 +63,7 @@ struct DashboardRecommendation: Identifiable {
     }
 }
 
-/// Child with allergies who has a meal logged today.
+/// A child with an active allergen who had a meal entry today.
 struct AllergyAlertItem: Identifiable {
     let id = UUID()
     let child: ChildProfile
@@ -114,7 +122,7 @@ class DashboardViewModel {
         dataManager.childrenWithAllergies()
     }
 
-    // MARK: - Quick Stats
+    // MARK: - Quick Stats (all real-time from DataManager)
 
     /// Number of distinct children who have at least 1 diary entry logged today.
     var childrenCheckedInToday: Int {
@@ -143,24 +151,28 @@ class DashboardViewModel {
         dataManager.pendingReviewIncidents().count
     }
 
-    /// Total actionable alerts.
+    /// Total actionable alerts = allergyAlerts + high/medium recommendations
     var activeAlerts: Int {
         allergyAlertItems.count +
         todayRecommendations.filter { $0.priority >= .medium }.count
     }
 
     // MARK: - Allergy Alert Items
+    // Children who have allergies AND had at least one meal entry logged today.
+    // (Signal: we need to verify the meal was allergen-safe.)
 
     var allergyAlertItems: [AllergyAlertItem] {
         let cal = Calendar.current
-        let todayMealEntriesByChild = Dictionary(grouping: dataManager.diaryEntries.filter {
-            $0.type == .meal && cal.isDateInToday($0.timestamp)
-        }, by: \.childId)
-
         return assignedChildren
             .filter { !$0.allergies.isEmpty }
             .compactMap { child -> AllergyAlertItem? in
-                guard let meal = todayMealEntriesByChild[child.id]?.first else { return nil }
+                // Has a meal entry been logged for this child today?
+                let mealEntry = dataManager.diaryEntries.first {
+                    $0.childId == child.id &&
+                    $0.type == .meal &&
+                    cal.isDateInToday($0.timestamp)
+                }
+                guard let meal = mealEntry else { return nil }
                 return AllergyAlertItem(
                     child: child,
                     allergies: child.allergies,
@@ -170,20 +182,24 @@ class DashboardViewModel {
     }
 
     // MARK: - Today's Recommendations
+    // Computed by iterating each assigned child and checking for gaps in their
+    // diary records relative to the current time of day.
+    // Calendar.isDateInToday uses the device's local calendar — timezone safe.
 
     var todayRecommendations: [DashboardRecommendation] {
         var items: [DashboardRecommendation] = []
         let cal = Calendar.current
         let now = Date()
         let hour = cal.component(.hour, from: now)
-        let todayEntriesByChild = Dictionary(grouping: dataManager.diaryEntries.filter {
-            cal.isDateInToday($0.timestamp)
-        }, by: \.childId)
 
         for child in assignedChildren {
-            let todayEntries = todayEntriesByChild[child.id] ?? []
+            let todayEntries = dataManager.diaryEntries.filter {
+                $0.childId == child.id && cal.isDateInToday($0.timestamp)
+            }
 
-            // Arrival wellbeing check
+            // ── Arrival Wellbeing Check ─────────────────────────────────
+            // Expected: at least one .wellbeing entry with period = arrival
+            // Alert if: hour >= 8 and no arrival wellbeing recorded yet
             let hasArrivalWellbeing = todayEntries.contains {
                 $0.type == .wellbeing &&
                 ($0.wellbeingCheckTime == .arrival || $0.wellbeingCheckTime == WellbeingCheckTime.allCases.first)
@@ -198,7 +214,8 @@ class DashboardViewModel {
                 ))
             }
 
-            // Midday wellbeing check
+            // ── Midday Wellbeing Check ──────────────────────────────────
+            // Expected: .wellbeing entry at midday period after 11am
             if hour >= 11 {
                 let hasMiddayWellbeing = todayEntries.contains {
                     $0.type == .wellbeing && $0.wellbeingCheckTime == .midday
@@ -214,7 +231,8 @@ class DashboardViewModel {
                 }
             }
 
-            // Lunch not logged
+            // ── Lunch Not Logged ────────────────────────────────────────
+            // Expected: .meal entry with mealType = .lunch after 12pm
             if hour >= 13 {
                 let hasLunch = todayEntries.contains {
                     $0.type == .meal &&
@@ -232,18 +250,20 @@ class DashboardViewModel {
                 }
             }
 
-            // Nappy check overdue
+            // ── Nappy Check Overdue ─────────────────────────────────────
+            // Expected: children < 3 years old, nappy change every ~3 hours
             let ageInYears = child.dateOfBirth.ageInYears
             if ageInYears < 3 {
                 let lastNappy = todayEntries
                     .filter { $0.type == .nappy }
-                    .max { $0.timestamp < $1.timestamp }
+                    .sorted { $0.timestamp > $1.timestamp }
+                    .first
 
                 let hoursSinceNappy: Double
                 if let nappy = lastNappy {
                     hoursSinceNappy = now.timeIntervalSince(nappy.timestamp) / 3600
                 } else {
-                    // No nappy change logged yet today.
+                    // Never changed today — treat as very overdue
                     hoursSinceNappy = Double(hour)
                 }
 
@@ -259,7 +279,8 @@ class DashboardViewModel {
                 }
             }
 
-            // Rest period not logged
+            // ── Rest Period Not Logged ──────────────────────────────────
+            // Expected: children < 3 after 1pm should have a sleep entry
             if ageInYears < 3 && hour >= 14 {
                 let hasSleep = todayEntries.contains { $0.type == .sleep }
                 if !hasSleep {
@@ -274,14 +295,14 @@ class DashboardViewModel {
             }
         }
 
-        // Highest priority first, then child name.
+        // Sort: highest priority first, then alphabetically by child name within same priority
         return items.sorted {
             if $0.priority != $1.priority { return $0.priority > $1.priority }
             return $0.child.firstName < $1.child.firstName
         }
     }
 
-    /// True when there are no recommendations or allergy alerts.
+    /// Convenience: returns true when all assigned children are fully up-to-date.
     var allRecordsUpToDate: Bool {
         todayRecommendations.isEmpty && allergyAlertItems.isEmpty
     }
@@ -310,14 +331,18 @@ class DashboardViewModel {
     }
 
     // MARK: - Backward-Compat Properties
+    // (used by KeyworkerDashboardView stats chips)
 
     var totalChildrenCount: Int { dataManager.children.count }
 
     var totalEntriesThisWeek: Int { dataManager.totalEntriesThisWeek() }
 
     // MARK: - Refresh
-    /// Triggers observable recomputation for dashboard consumers.
+    /// Called on .onAppear and after entrySaved notification.
+    /// Since @Observable tracks property access, most UI simply re-reads computed
+    /// properties. However, we manually flush any needed DataManager state here.
     func refresh() {
+        // DataManager automatically persists; just touch a property to trigger view refresh
         let _ = dataManager.diaryEntries.count
     }
 }

@@ -1,4 +1,9 @@
-// Top-of-screen in-app toast banner for notifications.
+// NurseryConnect | InAppToastBanner.swift
+// Global notification toast banner triggered by NotificationManager.latestNotification.
+// Appears at the top of the screen with slide-down animation and auto-dismisses.
+// Queue-based — only one toast shown at a time.
+//
+// DESIGN: Von Restorff for critical alerts (red tint); Fitts's Law ≥ 44pt tap target.
 
 import SwiftUI
 

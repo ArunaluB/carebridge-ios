@@ -1,4 +1,9 @@
-// Notification center sheet grouped by date and filter.
+// NurseryConnect | NotificationCenterSheet.swift
+// Slide-up notification history sheet with filter chips and date grouping.
+// Shows all app notifications, grouped by Today / Yesterday / Earlier.
+// Compliant with EYFS 2024 and RIDDOR notification requirements.
+//
+// DESIGN: Filter chips per Nielsen flexibility; swipe-to-delete; Fitts's Law ≥ 44pt.
 
 import SwiftUI
 
@@ -152,6 +157,7 @@ struct NotificationCenterSheet: View {
     // MARK: - Notification Row
     private func notificationRow(_ notification: AppNotification) -> some View {
         HStack(alignment: .top, spacing: 12) {
+            // Type icon
             ZStack {
                 Circle()
                     .fill(notification.type.color.opacity(0.15))
@@ -161,6 +167,7 @@ struct NotificationCenterSheet: View {
                     .foregroundStyle(notification.type.color)
             }
 
+            // Content
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(notification.title)
@@ -180,6 +187,7 @@ struct NotificationCenterSheet: View {
                     .foregroundStyle(Color.ncTextSec)
                     .lineLimit(2)
 
+                // Child context
                 if let childName = notification.childName {
                     HStack(spacing: 4) {
                         Image(systemName: "person.fill")
@@ -194,6 +202,7 @@ struct NotificationCenterSheet: View {
                 }
             }
 
+            // Unread dot
             if !notification.isRead {
                 Circle()
                     .fill(notification.type.color)

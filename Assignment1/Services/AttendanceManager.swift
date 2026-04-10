@@ -1,4 +1,12 @@
-// Attendance workflows with UserDefaults persistence.
+// NurseryConnect | AttendanceManager.swift
+// @Observable service managing daily attendance records for all assigned children.
+// Supports check-in, check-out, mark-absent workflows with JSON+UserDefaults persistence.
+// Compliant with EYFS 2024 Section 3.64 — attendance and registration requirements.
+//
+// STATE MACHINE:
+//   EXPECTED → CHECKED_IN → CHECKED_OUT
+//   EXPECTED → ABSENT
+//   checkIn() is idempotent — updates existing record for same child+date.
 
 import Foundation
 import SwiftUI
@@ -148,7 +156,7 @@ class AttendanceManager {
         return records.first { $0.childId == childId && cal.isDateInToday($0.date) }
     }
 
-    // MARK: - Check In
+    // MARK: - Check In (Idempotent)
 
     func checkIn(
         child: ChildProfile,

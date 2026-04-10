@@ -121,7 +121,7 @@ class IncidentViewModel {
         errors.append(contentsOf: FormValidator.validateIncidentForm(
             description: cleanedDescription,
             location: cleanedLocation,
-            actionTaken: cleanedAction,
+            actionTaken: immediateActionTaken,
             category: category
         ))
         return errors
@@ -129,18 +129,6 @@ class IncidentViewModel {
     
     var isFormValid: Bool {
         formErrors.isEmpty
-    }
-
-    private var cleanedLocation: String {
-        location.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private var cleanedDescription: String {
-        description.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private var cleanedAction: String {
-        immediateActionTaken.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
     // MARK: - Save Incident
@@ -155,6 +143,9 @@ class IncidentViewModel {
         
         guard let childId = selectedChildId, let cat = category else { return }
         
+        let cleanedLocation = location.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanedAction = immediateActionTaken.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanWitnesses = witnesses.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         
         let incident = Incident(

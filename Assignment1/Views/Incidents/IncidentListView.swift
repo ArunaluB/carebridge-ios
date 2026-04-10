@@ -1,4 +1,6 @@
-// Incident list with search, filters, and severity-based ordering.
+// NurseryConnect | IncidentListView.swift
+// RIDDOR-compliant incident list with notification timers, RIDDOR flags,
+// severity sorting, and swipe actions. EYFS 2024 same-day enforcement.
 
 import SwiftUI
 import Combine

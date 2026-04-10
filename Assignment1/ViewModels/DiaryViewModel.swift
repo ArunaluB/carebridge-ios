@@ -101,11 +101,11 @@ class DiaryViewModel {
         // Populate type-specific fields
         switch type {
         case .activity:
-            guard let selectedActivityType = activityType else {
+            guard let at = activityType else {
                 toast = ToastData(type: .warning, message: "Please select an activity type")
                 return
             }
-            entry.activityType = selectedActivityType
+            entry.activityType = at
             entry.activityDuration = activityDuration
             entry.notes = activityNotes
             entry.eyfsArea = eyfsArea.isEmpty ? nil : eyfsArea
@@ -124,21 +124,21 @@ class DiaryViewModel {
             entry.sleepDisturbances = sleepNotes.isEmpty ? nil : sleepNotes
             
         case .nappy:
-            guard let selectedNappyType = nappyType else {
+            guard let nt = nappyType else {
                 toast = ToastData(type: .warning, message: "Please select a nappy type")
                 return
             }
-            entry.nappyType = selectedNappyType
+            entry.nappyType = nt
             entry.nappyConcerns = nappyConcerns.isEmpty ? nil : nappyConcerns
             entry.creamApplied = creamApplied
             entry.notes = nappyConcerns
             
         case .meal:
-            guard let selectedMealType = mealType else {
+            guard let mt = mealType else {
                 toast = ToastData(type: .warning, message: "Please select a meal type")
                 return
             }
-            entry.mealType = selectedMealType
+            entry.mealType = mt
             entry.foodOffered = foodOffered.isEmpty ? nil : foodOffered
             entry.portionConsumed = portionConsumed
             entry.drinkType = drinkType

@@ -1,4 +1,6 @@
-// Reusable circular avatar with optional status and warning badges.
+// AvatarView.swift
+// NurseryConnect
+// Circular avatar with initials, optional status indicator dot, and allergy badge
 
 import SwiftUI
 

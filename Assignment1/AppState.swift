@@ -1,8 +1,17 @@
-// Shared app-level state used by ContentView and the custom tab/FAB flow.
+// NurseryConnect | AppState.swift
+// Shared @Observable state bridge — connects the FAB in CustomTabBar to the
+// DiaryEntryFormView sheet presented by ContentView.
+//
+// STATE FLOW:
+//   FAB tap → appState.fabSelectedEntryType = .activity
+//            → appState.showFABSheet = true
+//            → ContentView .sheet(isPresented:) fires
+//            → DiaryEntryFormView pre-filled with type
+//            → save() → sheet dismissed → toast in ContentView
 
 import SwiftUI
 
-// MARK: - AppState
+// MARK: - AppState (iOS 17 @Observable)
 @Observable
 final class AppState {
 
@@ -11,10 +20,12 @@ final class AppState {
     /// nil means no selection has been made yet.
     var fabSelectedEntryType: DiaryEntryType? = nil
 
-    /// Set when the FAB entry form should be presented by ContentView.
+    /// Set to true when the FAB action sheet should be presented.
+    /// Owned and presented by ContentView.
     var showFABSheet: Bool = false
 
-    /// Shows a child picker before opening the FAB entry form.
+    /// Set to true when no child is selected in DiaryViewModel and we
+    /// need to show the child-picker before opening the entry form.
     var showChildPickerFirst: Bool = false
 
     // MARK: - Sheet Navigation
@@ -24,11 +35,12 @@ final class AppState {
     var showEndOfDayChecklist: Bool = false
 
     // MARK: - Global Toast
-    /// Global toast container surfaced by ContentView.
+    /// Top-level toast accessible from any screen branched below ContentView.
     var globalToast: ToastData? = nil
 
     // MARK: - FAB Trigger
-    /// Triggers the FAB entry flow.
+    /// Call from CustomTabBar when a FAB action item is tapped.
+    /// Accepts an optional current child ID — if nil, child picker is shown first.
     func triggerFAB(entryType: DiaryEntryType, hasSelectedChild: Bool) {
         fabSelectedEntryType = entryType
         if hasSelectedChild {
@@ -38,7 +50,7 @@ final class AppState {
         }
     }
 
-    /// Resets transient FAB navigation state.
+    /// Clears all FAB navigation state after the sheet has been dismissed.
     func resetFABState() {
         fabSelectedEntryType = nil
         showFABSheet = false

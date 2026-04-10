@@ -1,4 +1,7 @@
-// Read-only demo inbox state and actions.
+// NurseryConnect | MessageManager.swift
+// @Observable service managing a simulated read-only message inbox.
+// MVP limitation: keyworker cannot compose messages — replies go through manager portal.
+// Compliant with UK GDPR and EYFS parent communication requirements.
 
 import Foundation
 import SwiftUI

@@ -1,4 +1,7 @@
-// Read-only sheet for a single body map marker.
+// NurseryConnect | BodyMapMarkerDetailSheet.swift
+// Full-screen sheet for viewing a single body map marker in detail.
+// Shows large body diagram with highlighted zone and pulsing marker dot.
+// Read-only — RIDDOR 2013 and EYFS 2024 compliant.
 
 import SwiftUI
 

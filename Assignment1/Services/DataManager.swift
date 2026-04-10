@@ -1,11 +1,11 @@
 // DataManager.swift
 // NurseryConnect
-// Central data manager backed by SwiftData local persistence.
-// Uses a single persisted snapshot model to keep existing app-facing APIs unchanged.
+// Central data manager using UserDefaults + JSON codable persistence
+// Chosen over Core Data for simplicity in MVP scope while still providing
+// structured data storage with relationships
 
 import Foundation
 import SwiftUI
-import SwiftData
 
 @Observable
 class DataManager {
@@ -16,12 +16,6 @@ class DataManager {
     var children: [ChildProfile]
     var diaryEntries: [DiaryEntry]
     var incidents: [Incident]
-    var persistenceMode: String = "SwiftData (on-device)"
-    var persistenceWarning: String?
-
-    // MARK: - SwiftData
-    private let container: ModelContainer
-    private var context: ModelContext { container.mainContext }
     
     // MARK: - UserDefaults Keys
     private let keyworkerKey = "nc_keyworker"
@@ -32,13 +26,6 @@ class DataManager {
     
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
-
-    private struct StoredState {
-        let keyworker: KeyworkerProfile
-        let children: [ChildProfile]
-        let diaryEntries: [DiaryEntry]
-        let incidents: [Incident]
-    }
     
     var hasLaunchedBefore: Bool {
         get { UserDefaults.standard.bool(forKey: hasLaunchedKey) }
@@ -48,57 +35,50 @@ class DataManager {
     init() {
         encoder.dateEncodingStrategy = .iso8601
         decoder.dateDecodingStrategy = .iso8601
-
-        if let primaryContainer = try? ModelContainer(for: PersistedAppStore.self) {
-            container = primaryContainer
-            persistenceMode = "SwiftData (on-device)"
-        } else if let fallbackContainer = try? ModelContainer(
-            for: PersistedAppStore.self,
-            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
-        ) {
-            container = fallbackContainer
-            persistenceMode = "SwiftData (in-memory fallback)"
-            persistenceWarning = "Persistent storage is unavailable. Changes will reset when the app restarts."
+        
+        // Load data from UserDefaults
+        if let data = UserDefaults.standard.data(forKey: keyworkerKey),
+           let kw = try? decoder.decode(KeyworkerProfile.self, from: data) {
+            self.keyworker = kw
         } else {
-            preconditionFailure("Failed to initialize local data storage")
+            self.keyworker = SampleData.keyworker
         }
-
-        // Initialize with sample values first, then overwrite from persisted data if available.
-        self.keyworker = SampleData.keyworker
-        self.children = SampleData.children
-        self.diaryEntries = SampleData.generateDiaryEntries()
-        self.incidents = SampleData.generateIncidents()
-
-        if let persistedStore = fetchPersistedStore(),
-           let persistedState = decodeState(from: persistedStore) {
-            self.keyworker = persistedState.keyworker
-            self.children = persistedState.children
-            self.diaryEntries = persistedState.diaryEntries
-            self.incidents = persistedState.incidents
-        } else if let legacyState = loadLegacyUserDefaultsState() {
-            self.keyworker = legacyState.keyworker
-            self.children = legacyState.children
-            self.diaryEntries = legacyState.diaryEntries
-            self.incidents = legacyState.incidents
+        
+        if let data = UserDefaults.standard.data(forKey: childrenKey),
+           let ch = try? decoder.decode([ChildProfile].self, from: data) {
+            self.children = ch
+        } else {
+            self.children = SampleData.children
         }
-
-        // Ensure state is present and up to date in SwiftData after init.
-        save()
+        
+        if let data = UserDefaults.standard.data(forKey: diaryEntriesKey),
+           let de = try? decoder.decode([DiaryEntry].self, from: data) {
+            self.diaryEntries = de
+        } else {
+            self.diaryEntries = SampleData.generateDiaryEntries()
+        }
+        
+        if let data = UserDefaults.standard.data(forKey: incidentsKey),
+           let inc = try? decoder.decode([Incident].self, from: data) {
+            self.incidents = inc
+        } else {
+            self.incidents = SampleData.generateIncidents()
+        }
     }
     
     // MARK: - Persistence
     func save() {
-        do {
-            let store = upsertStore()
-            store.keyworkerData = try encoder.encode(keyworker)
-            store.childrenData = try encoder.encode(children)
-            store.diaryEntriesData = try encoder.encode(diaryEntries)
-            store.incidentsData = try encoder.encode(incidents)
-            store.updatedAt = Date()
-            try context.save()
-        } catch {
-            persistenceWarning = "Latest changes could not be written to local storage."
-            print("Failed to save SwiftData state: \(error.localizedDescription)")
+        if let data = try? encoder.encode(keyworker) {
+            UserDefaults.standard.set(data, forKey: keyworkerKey)
+        }
+        if let data = try? encoder.encode(children) {
+            UserDefaults.standard.set(data, forKey: childrenKey)
+        }
+        if let data = try? encoder.encode(diaryEntries) {
+            UserDefaults.standard.set(data, forKey: diaryEntriesKey)
+        }
+        if let data = try? encoder.encode(incidents) {
+            UserDefaults.standard.set(data, forKey: incidentsKey)
         }
     }
     
@@ -241,131 +221,6 @@ class DataManager {
         diaryEntries = SampleData.generateDiaryEntries()
         incidents = SampleData.generateIncidents()
         save()
-    }
-
-    // MARK: - Private Helpers
-    private static func sampleState() -> StoredState {
-        StoredState(
-            keyworker: SampleData.keyworker,
-            children: SampleData.children,
-            diaryEntries: SampleData.generateDiaryEntries(),
-            incidents: SampleData.generateIncidents()
-        )
-    }
-
-    private func decodeState(from store: PersistedAppStore) -> StoredState? {
-        do {
-            let keyworker = try decoder.decode(KeyworkerProfile.self, from: store.keyworkerData)
-            let children = try decoder.decode([ChildProfile].self, from: store.childrenData)
-            let diaryEntries = try decoder.decode([DiaryEntry].self, from: store.diaryEntriesData)
-            let incidents = try decoder.decode([Incident].self, from: store.incidentsData)
-
-            return StoredState(
-                keyworker: keyworker,
-                children: children,
-                diaryEntries: diaryEntries,
-                incidents: incidents
-            )
-        } catch {
-            return nil
-        }
-    }
-
-    private func loadLegacyUserDefaultsState() -> StoredState? {
-        let defaults = UserDefaults.standard
-        let hasLegacyData = [keyworkerKey, childrenKey, diaryEntriesKey, incidentsKey].contains {
-            defaults.data(forKey: $0) != nil
-        }
-
-        guard hasLegacyData else { return nil }
-
-        let keyworker = decodeWithFallback(
-            defaults.data(forKey: keyworkerKey),
-            as: KeyworkerProfile.self,
-            fallback: SampleData.keyworker
-        )
-        let children = decodeWithFallback(
-            defaults.data(forKey: childrenKey),
-            as: [ChildProfile].self,
-            fallback: SampleData.children
-        )
-        let diaryEntries = decodeWithFallback(
-            defaults.data(forKey: diaryEntriesKey),
-            as: [DiaryEntry].self,
-            fallback: SampleData.generateDiaryEntries()
-        )
-        let incidents = decodeWithFallback(
-            defaults.data(forKey: incidentsKey),
-            as: [Incident].self,
-            fallback: SampleData.generateIncidents()
-        )
-
-        return StoredState(
-            keyworker: keyworker,
-            children: children,
-            diaryEntries: diaryEntries,
-            incidents: incidents
-        )
-    }
-
-    private func decodeWithFallback<T: Decodable>(_ data: Data?, as type: T.Type, fallback: T) -> T {
-        guard let data, let decoded = try? decoder.decode(type, from: data) else {
-            return fallback
-        }
-        return decoded
-    }
-
-    private func fetchPersistedStore() -> PersistedAppStore? {
-        do {
-            let stores = try context.fetch(FetchDescriptor<PersistedAppStore>())
-            if let primary = stores.first(where: { $0.storeId == PersistedAppStore.defaultStoreId }) {
-                return primary
-            }
-            if let firstStore = stores.first {
-                firstStore.storeId = PersistedAppStore.defaultStoreId
-                return firstStore
-            }
-            return nil
-        } catch {
-            return nil
-        }
-    }
-
-    private func upsertStore() -> PersistedAppStore {
-        if let existingStore = fetchPersistedStore() {
-            return existingStore
-        }
-        let newStore = PersistedAppStore(storeId: PersistedAppStore.defaultStoreId)
-        context.insert(newStore)
-        return newStore
-    }
-}
-
-@Model
-final class PersistedAppStore {
-    static let defaultStoreId = "primary"
-
-    @Attribute(.unique) var storeId: String
-    var keyworkerData: Data
-    var childrenData: Data
-    @Attribute(.externalStorage) var diaryEntriesData: Data
-    @Attribute(.externalStorage) var incidentsData: Data
-    var updatedAt: Date
-
-    init(
-        storeId: String,
-        keyworkerData: Data = Data(),
-        childrenData: Data = Data(),
-        diaryEntriesData: Data = Data(),
-        incidentsData: Data = Data(),
-        updatedAt: Date = Date()
-    ) {
-        self.storeId = storeId
-        self.keyworkerData = keyworkerData
-        self.childrenData = childrenData
-        self.diaryEntriesData = diaryEntriesData
-        self.incidentsData = incidentsData
-        self.updatedAt = updatedAt
     }
 }
 

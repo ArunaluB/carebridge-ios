@@ -1,6 +1,14 @@
-// Diary entry form with type-specific fields and validation.
+// NurseryConnect | DiaryEntryFormView.swift
+// Full diary compliance: arrival/departure/milestone entry types,
+// allergen confirmation for meals, child selector, auto-dismiss on save.
+// EYFS 2024 Section 7.3 — all 9 diary log types.
 
 import SwiftUI
+
+// MARK: - Notification Name Extension
+extension Notification.Name {
+    static let entrySaved = Notification.Name("entrySaved")
+}
 
 // MARK: - DiaryEntryFormView
 struct DiaryEntryFormView: View {
@@ -35,7 +43,7 @@ struct DiaryEntryFormView: View {
     @State private var showSaveSuccess = false
     @State private var saveScale: CGFloat = 1.0
 
-    // Pre-selected child when opened from a child-specific flow.
+    // Pre-selected child (locked when opened from child's diary)
     var preselectedChildId: UUID?
     var isChildLocked: Bool { preselectedChildId != nil }
 
@@ -105,7 +113,7 @@ struct DiaryEntryFormView: View {
             sectionHeader(icon: "person.fill", title: "Child", color: Color.ncPrimary)
 
             if isChildLocked, let child = selectedChild {
-                // Locked child display
+                // Locked child — static display
                 HStack(spacing: 12) {
                     ChildAvatar(child: child, size: 44)
                     VStack(alignment: .leading, spacing: 2) {
@@ -864,6 +872,46 @@ struct DiaryEntryFormView: View {
             RoundedRectangle(cornerRadius: 10)
                 .stroke(Color.white.opacity(0.1), lineWidth: 1)
         )
+    }
+}
+
+// MARK: - Flow Layout (for allergen pills)
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 6
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let (size, _) = arrange(proposal: proposal, subviews: subviews)
+        return size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let (_, positions) = arrange(proposal: proposal, subviews: subviews)
+
+        for (index, subview) in subviews.enumerated() {
+            subview.place(at: CGPoint(x: bounds.minX + positions[index].x, y: bounds.minY + positions[index].y), proposal: proposal)
+        }
+    }
+
+    private func arrange(proposal: ProposedViewSize, subviews: Subviews) -> (size: CGSize, positions: [CGPoint]) {
+        let maxWidth = proposal.width ?? .infinity
+        var positions: [CGPoint] = []
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > maxWidth, x > 0 {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            positions.append(CGPoint(x: x, y: y))
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+        }
+
+        return (CGSize(width: maxWidth, height: y + rowHeight), positions)
     }
 }
 

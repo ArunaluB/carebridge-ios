@@ -1,4 +1,7 @@
-// In-app notification state and filtering.
+// NurseryConnect | NotificationManager.swift
+// @Observable singleton managing in-app notifications with toast triggering.
+// Generates alerts from app state: RIDDOR overdue, allergen warnings, wellbeing reminders.
+// Compliant with EYFS 2024, RIDDOR 2013.
 
 import Foundation
 import SwiftUI
@@ -124,7 +127,7 @@ class NotificationManager {
 
     var notifications: [AppNotification] = []
 
-    /// Set on every add to trigger in-app toast UI.
+    /// Set on every addNotification() call — observed by ContentView for toast display.
     var latestNotification: AppNotification?
 
     var unreadCount: Int {

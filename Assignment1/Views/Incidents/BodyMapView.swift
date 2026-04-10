@@ -1,15 +1,19 @@
-// Interactive body map used when logging incident locations.
+// NurseryConnect | BodyMapView.swift
+// Interactive body map with SwiftUI Path-drawn silhouette, zone highlights,
+// and front/back toggle. Used in IncidentFormView for marking injury locations.
+// Compliant with RIDDOR 2013, EYFS 2024, and Apple HIG.
 
 import SwiftUI
 
 // MARK: - Body Region Zone Data
-/// Normalized CGRect zones (0.0-1.0) for each body region.
+/// Normalized CGRect zones (0.0–1.0) for each BodyRegion.
+/// Used to translate region names into pixel-level highlights on the body diagram.
 struct BodyRegionZone {
     let region: BodyRegion
     let rect: CGRect
     let view: BodyMapSide
 
-    /// Front-facing zones.
+    /// All front-facing zone definitions
     static let frontZones: [BodyRegionZone] = [
         BodyRegionZone(region: .head,      rect: CGRect(x: 0.35, y: 0.00, width: 0.30, height: 0.13), view: .front),
         BodyRegionZone(region: .face,      rect: CGRect(x: 0.35, y: 0.08, width: 0.30, height: 0.09), view: .front),
@@ -26,7 +30,7 @@ struct BodyRegionZone {
         BodyRegionZone(region: .rightFoot, rect: CGRect(x: 0.52, y: 0.86, width: 0.22, height: 0.09), view: .front),
     ]
 
-    /// Back-facing zones.
+    /// All back-facing zone definitions
     static let backZones: [BodyRegionZone] = [
         BodyRegionZone(region: .head,      rect: CGRect(x: 0.35, y: 0.00, width: 0.30, height: 0.13), view: .back),
         BodyRegionZone(region: .neck,      rect: CGRect(x: 0.38, y: 0.13, width: 0.24, height: 0.06), view: .back),
@@ -41,7 +45,7 @@ struct BodyRegionZone {
         BodyRegionZone(region: .rightFoot, rect: CGRect(x: 0.52, y: 0.86, width: 0.22, height: 0.09), view: .back),
     ]
 
-    /// Converts a normalized rect to pixel coordinates.
+    /// Convert normalized rect to actual pixel rect within a panel size
     static func zoneRect(_ zone: CGRect, in size: CGSize) -> CGRect {
         CGRect(
             x: zone.origin.x * size.width,
@@ -53,7 +57,7 @@ struct BodyRegionZone {
 }
 
 // MARK: - BodyRegion Enum
-/// Body regions that can be selected on the map.
+/// All body regions that can be marked in RIDDOR incident reports.
 enum BodyRegion: String, CaseIterable, Codable, Identifiable {
     case head, face, neck
     case leftArm, rightArm, leftHand, rightHand
@@ -81,35 +85,36 @@ enum BodyRegion: String, CaseIterable, Codable, Identifiable {
         }
     }
 
-    /// Default side for this region.
+    /// Which body view (front/back) this region naturally belongs to
     var defaultView: BodyMapSide {
         self == .back ? .back : .front
     }
 }
 
-// MARK: - Human Body Shape
-/// Draws the body silhouette.
+// MARK: - Human Body Shape (SwiftUI Path)
+/// Draws a recognizable human body silhouette using SwiftUI Path commands.
+/// No external images, UIKit, or SF Symbols used for the body outline.
 struct HumanBodyShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let w = rect.width
         let h = rect.height
 
-        // Head
+        // Head — ellipse at top center
         let headW = w * 0.26
         let headH = h * 0.12
         let headX = (w - headW) / 2
         let headY = h * 0.01
         path.addEllipse(in: CGRect(x: headX, y: headY, width: headW, height: headH))
 
-        // Neck
+        // Neck — rectangle below head
         let neckW = w * 0.12
         let neckH = h * 0.04
         let neckX = (w - neckW) / 2
         let neckY = headY + headH - h * 0.01
         path.addRect(CGRect(x: neckX, y: neckY, width: neckW, height: neckH))
 
-        // Torso
+        // Torso — rounded rectangle
         let torsoW = w * 0.42
         let torsoH = h * 0.30
         let torsoX = (w - torsoW) / 2
@@ -119,7 +124,7 @@ struct HumanBodyShape: Shape {
             cornerSize: CGSize(width: 8, height: 8)
         )
 
-        // Left arm
+        // Left Arm — rectangle on left side
         let armW = w * 0.12
         let armH = h * 0.30
         let leftArmX = torsoX - armW + w * 0.02
@@ -129,14 +134,14 @@ struct HumanBodyShape: Shape {
             cornerSize: CGSize(width: 5, height: 5)
         )
 
-        // Right arm
+        // Right Arm — rectangle on right side
         let rightArmX = torsoX + torsoW - w * 0.02
         path.addRoundedRect(
             in: CGRect(x: rightArmX, y: armY, width: armW, height: armH),
             cornerSize: CGSize(width: 5, height: 5)
         )
 
-        // Left leg
+        // Left Leg — rectangle below torso
         let legW = w * 0.16
         let legH = h * 0.34
         let legGap = w * 0.02
@@ -147,14 +152,14 @@ struct HumanBodyShape: Shape {
             cornerSize: CGSize(width: 6, height: 6)
         )
 
-        // Right leg
+        // Right Leg
         let rightLegX = (w / 2) + (legGap / 2)
         path.addRoundedRect(
             in: CGRect(x: rightLegX, y: legY, width: legW, height: legH),
             cornerSize: CGSize(width: 6, height: 6)
         )
 
-        // Left foot
+        // Left Foot
         let footW = w * 0.17
         let footH = h * 0.05
         let leftFootX = leftLegX - w * 0.01
@@ -164,7 +169,7 @@ struct HumanBodyShape: Shape {
             cornerSize: CGSize(width: 4, height: 4)
         )
 
-        // Right foot
+        // Right Foot
         let rightFootX = rightLegX
         path.addRoundedRect(
             in: CGRect(x: rightFootX, y: footY, width: footW, height: footH),
@@ -175,8 +180,9 @@ struct HumanBodyShape: Shape {
     }
 }
 
-// MARK: - Marker Dot
-/// Numbered pulse marker for selected injury points.
+// MARK: - Pulsing Marker Dot
+/// A coral circle with numbered label, pulsing animation, and white border.
+/// Used to indicate exact injury locations on the body map diagram.
 struct MarkerDotView: View {
     let number: Int
     let color: Color
@@ -208,8 +214,9 @@ struct MarkerDotView: View {
     }
 }
 
-// MARK: - Body Diagram Panel
-/// Read-only map used to render recorded markers.
+// MARK: - Body Diagram Panel (Read-Only)
+/// Renders the body silhouette with zone highlights and marker dots.
+/// Used in IncidentDetailView to show recorded injury locations.
 struct BodyDiagramPanel: View {
     let side: BodyMapSide
     let markers: [BodyMapMarker]
@@ -234,12 +241,15 @@ struct BodyDiagramPanel: View {
                 let size = geo.size
 
                 ZStack {
+                    // Body silhouette fill
                     HumanBodyShape()
                         .fill(Color.white.opacity(0.05))
 
+                    // Body silhouette outline
                     HumanBodyShape()
                         .stroke(Color.white.opacity(0.25), lineWidth: 1.5)
 
+                    // Zone highlights for markers present on this side
                     ForEach(filteredMarkers) { marker in
                         if let zone = zoneForMarker(marker) {
                             let actualRect = BodyRegionZone.zoneRect(zone.rect, in: size)
@@ -257,6 +267,7 @@ struct BodyDiagramPanel: View {
                         }
                     }
 
+                    // Marker dots
                     ForEach(Array(filteredMarkers.enumerated()), id: \.element.id) { index, marker in
                         let globalIndex = markers.firstIndex(where: { $0.id == marker.id }) ?? index
                         MarkerDotView(number: globalIndex + 1, color: Color(hex: "FF6B6B"))
@@ -273,6 +284,7 @@ struct BodyDiagramPanel: View {
 
     private func zoneForMarker(_ marker: BodyMapMarker) -> BodyRegionZone? {
         let allZones = side == .front ? BodyRegionZone.frontZones : BodyRegionZone.backZones
+        // Find the zone that contains the marker position
         return allZones.first { zone in
             zone.rect.contains(CGPoint(x: marker.xPercent, y: marker.yPercent))
         }
@@ -280,7 +292,8 @@ struct BodyDiagramPanel: View {
 }
 
 // MARK: - Interactive Body Map View
-/// Supports side toggle and tap-to-place markers.
+/// Used in IncidentFormView for marking injury locations.
+/// Supports front/back toggle and tap-to-place markers.
 struct BodyMapView: View {
     @Binding var markers: [BodyMapMarker]
     @Binding var currentSide: BodyMapSide
@@ -289,7 +302,7 @@ struct BodyMapView: View {
     @State private var showNotesSheet: Bool = false
     @State private var pendingMarker: BodyMapMarker?
 
-    // Zones for the currently selected side.
+    // Current zones for the selected side, accessible across the view body
     private var currentZones: [BodyRegionZone] {
         currentSide == .front ? BodyRegionZone.frontZones : BodyRegionZone.backZones
     }
@@ -329,9 +342,11 @@ struct BodyMapView: View {
                 let size = geo.size
 
                 ZStack {
+                    // Body fill
                     HumanBodyShape()
                         .fill(Color.white.opacity(0.05))
 
+                    // Body outline
                     HumanBodyShape()
                         .stroke(Color.white.opacity(0.25), lineWidth: 1.5)
 
@@ -356,6 +371,7 @@ struct BodyMapView: View {
                             .position(x: actualRect.midX, y: actualRect.midY)
                     }
 
+                    // Existing markers
                     let sideMarkers = markers.filter { $0.side == currentSide }
                     ForEach(Array(sideMarkers.enumerated()), id: \.element.id) { index, marker in
                         let globalIdx = markers.firstIndex(where: { $0.id == marker.id }) ?? index
@@ -371,11 +387,13 @@ struct BodyMapView: View {
                     let xPct = location.x / size.width
                     let yPct = location.y / size.height
 
+                    // Find the zone tapped
                     let tappedZone = currentZones.first { zone in
                         zone.rect.contains(CGPoint(x: xPct, y: yPct))
                     }
 
                     if let zone = tappedZone {
+                        // Check if already marked
                         if let existingIndex = markers.firstIndex(where: { m in
                             m.side == currentSide && zone.rect.contains(CGPoint(x: m.xPercent, y: m.yPercent))
                         }) {
@@ -437,7 +455,7 @@ struct BodyMapView: View {
 }
 
 // MARK: - Marker Notes Sheet
-/// Collects optional notes for a pending marker.
+/// Presented when a user taps a body region to add notes about the injury.
 struct MarkerNotesSheet: View {
     @Binding var notes: String
     let onSave: () -> Void
@@ -489,7 +507,7 @@ struct MarkerNotesSheet: View {
 }
 
 // MARK: - Flow Layout Chips
-/// Displays removable marker chips.
+/// Displays body map markers as removable chips in a wrapping flow layout.
 struct FlowLayoutChips: View {
     let markers: [BodyMapMarker]
     let onRemove: (BodyMapMarker) -> Void
@@ -498,6 +516,7 @@ struct FlowLayoutChips: View {
         LazyVStack(alignment: .leading, spacing: 8) {
             ForEach(Array(markers.enumerated()), id: \.element.id) { index, marker in
                 HStack(spacing: 8) {
+                    // Numbered circle
                     ZStack {
                         Circle()
                             .fill(Color(hex: "FF6B6B"))
@@ -507,6 +526,7 @@ struct FlowLayoutChips: View {
                             .foregroundStyle(.white)
                     }
 
+                    // Region name + side
                     Text(regionNameForMarker(marker) + " · " + marker.side.rawValue)
                         .font(.system(size: 13, weight: .medium, design: .rounded))
                         .foregroundStyle(Color.ncText)
@@ -521,6 +541,7 @@ struct FlowLayoutChips: View {
 
                     Spacer()
 
+                    // Remove button
                     Button {
                         onRemove(marker)
                     } label: {

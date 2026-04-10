@@ -1,4 +1,10 @@
-// Dashboard card that displays live sleep sessions.
+// NurseryConnect | SleepTrackerWidget.swift
+// Dashboard-embeddable live sleep tracker card with a single shared Timer.publish.
+// Displays currently sleeping children with live HH:MM:SS timer per child.
+// Compliant with EYFS 2024 Section 3.60 — sleep and rest period monitoring.
+//
+// PERFORMANCE: One Timer.publish(every: 1) drives all counters.
+// DESIGN: Gestalt grouping; Fitts's Law ≥ 44pt; Von Restorff for pulse animation.
 
 import SwiftUI
 import Combine
@@ -9,7 +15,7 @@ struct SleepTrackerWidget: View {
     @Environment(DataManager.self) private var dataManager
     @Environment(SleepTrackerManager.self) private var sleepTracker
 
-    /// Single shared timer for all live counters.
+    /// Single shared timer for all live counters — avoids per-child Timer overhead.
     @State private var now = Date()
     private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -74,7 +80,7 @@ struct SleepTrackerWidget: View {
                         }
                     }
                 } else {
-                    // Empty state with quick-start actions
+                    // Empty state — show Start Sleep buttons for checked-in children
                     emptyState
                 }
 

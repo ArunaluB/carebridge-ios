@@ -1,18 +1,27 @@
-// Custom tab bar and FAB menu used by the main app container.
+// NurseryConnect | CustomTabBar.swift
+// Full redesign: premium tab bar + FAB with staggered spring animations,
+// ultraThinMaterial backdrop, and AppState-driven navigation fix.
+//
+// BUG FIX 1 — FAB navigation: tapping an item sets appState.fabSelectedEntryType
+//              and appState.showFABSheet = true. ContentView owns the sheet.
+// BUG FIX 2 — Black gap: overlay uses .ignoresSafeArea() on the full ZStack,
+//              and backdrop is .ultraThinMaterial instead of Color.black.
 
 import SwiftUI
 
 // MARK: - Tab Item Enum
 enum TabItem: Int, CaseIterable, Identifiable {
-    case diary     = 0
-    case addNew    = 1
-    case incidents = 2
-    case settings  = 3
+    case dashboard = 0
+    case diary     = 1
+    case addNew    = 2
+    case incidents = 3
+    case settings  = 4
 
     var id: Int { rawValue }
 
     var title: String {
         switch self {
+        case .dashboard: return "Home"
         case .diary:     return "Diary"
         case .addNew:    return ""
         case .incidents: return "Incidents"
@@ -23,6 +32,7 @@ enum TabItem: Int, CaseIterable, Identifiable {
     /// SF Symbol used when this tab is the active selection (filled variant).
     var activeIcon: String {
         switch self {
+        case .dashboard: return "house.fill"
         case .diary:     return "book.fill"
         case .addNew:    return "plus"
         case .incidents: return "exclamationmark.shield.fill"
@@ -33,6 +43,7 @@ enum TabItem: Int, CaseIterable, Identifiable {
     /// SF Symbol used in the inactive state (outline/lighter variant).
     var inactiveIcon: String {
         switch self {
+        case .dashboard: return "house"
         case .diary:     return "book"
         case .addNew:    return "plus"
         case .incidents: return "exclamationmark.shield"
@@ -41,7 +52,7 @@ enum TabItem: Int, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - FAB Action Model
+// MARK: - FAB Action Model (shared within this file)
 struct FABActionItem: Identifiable {
     let id       = UUID()
     let type     : DiaryEntryType
@@ -50,7 +61,8 @@ struct FABActionItem: Identifiable {
     let gradient : [Color]
 }
 
-/// Shared FAB actions used by tab bar previews and menu rows.
+/// Single source of truth for all FAB action items — used by both
+/// CustomTabBar and AddEntryMenu to avoid duplication.
 extension FABActionItem {
     static let all: [FABActionItem] = [
         FABActionItem(
@@ -93,6 +105,7 @@ extension FABActionItem {
 }
 
 // MARK: - Scale Press Button Style
+/// Provides a subtle scale-down press effect for tactile feedback.
 struct ScalePressButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -114,7 +127,7 @@ struct CustomTabBar: View {
     @Environment(DataManager.self) private var dataManager
     @Environment(\.colorScheme)    private var colorScheme
 
-    /// Idle pulse when the FAB menu is collapsed.
+    /// Drives the idle scale-pulse on the FAB when the menu is collapsed.
     @State private var fabPulse: Bool = false
 
     var body: some View {
@@ -132,11 +145,13 @@ struct CustomTabBar: View {
         .padding(.bottom, 6)
         .background(tabBarBackground)
         .overlay(alignment: .top) {
+            // 0.5 pt hairline top separator (Nielsen #4: consistency with iOS)
             Rectangle()
                 .fill(Color.gray.opacity(0.2))
                 .frame(height: 0.5)
         }
         .onAppear {
+            // Start infinite idle pulse loop (1.0 → 1.05 → 1.0, 2s)
             withAnimation(
                 .easeInOut(duration: 2.0)
                 .repeatForever(autoreverses: true)
@@ -171,7 +186,7 @@ struct CustomTabBar: View {
                         value: isActive
                     )
 
-                // Only show text for the active tab to reduce visual noise.
+                // Label only for active tab — reduces visual noise (Hick's Law)
                 if isActive {
                     Text(tab.title)
                         .font(.system(size: 10, weight: .medium, design: .rounded))
@@ -182,7 +197,7 @@ struct CustomTabBar: View {
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(minHeight: 44)
+            .frame(minHeight: 44) // Fitts's Law — 44 pt minimum touch target
             .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
@@ -199,10 +214,12 @@ struct CustomTabBar: View {
             }
         } label: {
             ZStack {
+                // Outer glow halo — indicates open state
                 Circle()
                     .fill(Color.ncPrimary.opacity(showAddMenu ? 0.22 : 0))
                     .frame(width: 76, height: 76)
 
+                // Main 64 pt teal-to-emerald circle (Von Restorff — visually distinct)
                 Circle()
                     .fill(
                         LinearGradient(
@@ -217,8 +234,10 @@ struct CustomTabBar: View {
                         radius: showAddMenu ? 18 : 10,
                         y: 4
                     )
+                    // Idle pulse only when menu is closed
                     .scaleEffect(showAddMenu ? 1.0 : (fabPulse ? 1.05 : 1.0))
 
+                // Plus → X rotation
                 Image(systemName: "plus")
                     .font(.system(size: 26, weight: .bold))
                     .foregroundStyle(.white)
@@ -231,7 +250,7 @@ struct CustomTabBar: View {
         }
         .buttonStyle(PlainButtonStyle())
         .frame(maxWidth: .infinity)
-        .offset(y: -22)
+        .offset(y: -22) // Float 22 pt above the bar surface
         .accessibilityLabel(
             showAddMenu ? "Close quick actions" : "Open quick actions"
         )
@@ -263,6 +282,13 @@ struct CustomTabBar: View {
 }
 
 // MARK: - AddEntryMenu Overlay
+/// Full-screen overlay that sits in ContentView's root ZStack.
+///
+/// BUG FIX 2 (black gap):  The overlay ZStack must extend into safe areas.
+/// Previously the ZStack was clipped to the layout area, leaving the status
+/// bar region unstyled (appears black). Solution:
+///   • Apply `.ignoresSafeArea()` to the backdrop ZStack.
+///   • Use `.ultraThinMaterial` (system blur) instead of Color.black.
 struct AddEntryMenu: View {
     @Binding var isPresented: Bool
 
@@ -271,16 +297,22 @@ struct AddEntryMenu: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
+
+            // ── BACKDROP ───────────────────────────────────────────────────
+            // Must fill the ENTIRE screen including safe areas.
+            // Using two layered fills for the premium glass + teal tint effect.
             if isPresented {
                 ZStack {
                     Rectangle().fill(.ultraThinMaterial)
                     Rectangle().fill(Color.ncPrimary.opacity(0.04))
                 }
-                .ignoresSafeArea()
+                .ignoresSafeArea() // ← THE FIX: extends above the status bar
                 .onTapGesture { dismiss() }
                 .transition(.opacity)
             }
 
+            // ── ACTION ROWS ────────────────────────────────────────────────
+            // Positioned in the bottom ~55% of the screen, above the tab bar.
             if isPresented {
                 VStack(spacing: 10) {
                     ForEach(Array(FABActionItem.all.enumerated()), id: \.element.id) { index, action in
@@ -288,23 +320,28 @@ struct AddEntryMenu: View {
                     }
                 }
                 .padding(.horizontal, 28)
-                .padding(.bottom, 112)
+                .padding(.bottom, 112) // clears the 64pt FAB + 48pt tab bar
                 .transition(.opacity)
             }
         }
+        // Animate both the backdrop and rows together
         .animation(.spring(response: 0.45, dampingFraction: 0.72), value: isPresented)
+        // Pass touches through when collapsed so tabs remain interactive
         .allowsHitTesting(isPresented)
     }
 
     // MARK: - Action Row
     private func actionRow(action: FABActionItem, index: Int) -> some View {
+        // Staggered spring timing per design spec
         let appearDelay    = Double(index) * 0.05
+        // Reverse stagger on dismiss — last item collapses first
         let dismissDelay   = Double(FABActionItem.all.count - 1 - index) * 0.04
 
         return Button {
             handleSelection(action.type)
         } label: {
             HStack(spacing: 14) {
+                // Gradient icon circle (24 pt symbol, 48 pt touch target)
                 ZStack {
                     Circle()
                         .fill(
@@ -351,6 +388,7 @@ struct AddEntryMenu: View {
         }
         .buttonStyle(ScalePressButtonStyle())
         .accessibilityLabel(action.label)
+        // Each item gets its own delayed spring — creating a cascading waterfall
         .animation(
             .spring(response: 0.45, dampingFraction: 0.72)
                 .delay(isPresented ? appearDelay : dismissDelay),
@@ -359,7 +397,17 @@ struct AddEntryMenu: View {
     }
 
     // MARK: - Selection Handler
-    /// Routes selected FAB action to AppState after menu dismissal.
+    /// BUG FIX 1: Instead of attempting to navigate inside the tab bar
+    /// (which cannot reach sibling views), we write to AppState so ContentView
+    /// can react and present the correct sheet. Full flow:
+    ///
+    ///   actionRow tap
+    ///     → dismiss FAB menu (spring, 0.35s)
+    ///     → DispatchQueue.main.asyncAfter(0.25s)
+    ///       → appState.triggerFAB(entryType:, hasSelectedChild:)
+    ///         → appState.showFABSheet = true
+    ///           → ContentView .sheet fires
+    ///             → DiaryEntryFormView pre-filled with entryType
     private func handleSelection(_ type: DiaryEntryType) {
         HapticManager.mediumTap()
         let hasChildren = !dataManager.children.isEmpty
@@ -386,7 +434,7 @@ struct AddEntryMenu: View {
         VStack {
             Spacer()
             CustomTabBar(
-                selectedTab: .constant(.diary),
+                selectedTab: .constant(.dashboard),
                 showAddMenu: .constant(false)
             )
             .padding(.horizontal, 12)
@@ -403,7 +451,7 @@ struct AddEntryMenu: View {
         VStack {
             Spacer()
             CustomTabBar(
-                selectedTab: .constant(.diary),
+                selectedTab: .constant(.dashboard),
                 showAddMenu: .constant(true)
             )
             .padding(.horizontal, 12)
