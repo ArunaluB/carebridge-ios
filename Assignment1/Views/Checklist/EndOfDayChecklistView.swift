@@ -1,17 +1,11 @@
-// NurseryConnect | EndOfDayChecklistView.swift
-// Automated EYFS/Ofsted compliance checklist — all items computed from live DataManager state.
-// No manual ticking required — the system auto-evaluates each criterion.
-// Accessible via Dashboard card.
-//
-// COMPLIANCE: EYFS 2024) Section 3.64, Ofsted inspection readiness requirements.
-// DESIGN: Progress ring, green/red/amber status icons, Nielsen error prevention.
+// End-of-day checklist computed from current app state.
 
 import SwiftUI
 
 // MARK: - Checklist Item
 
 struct ChecklistItem: Identifiable {
-    let id = UUID()
+    var id: String { title }
     let title: String
     let status: ChecklistStatus
     let detail: String
@@ -54,7 +48,7 @@ struct EndOfDayChecklistView: View {
 
         var items: [ChecklistItem] = []
 
-        // 1. Attendance Complete
+        // 1. Attendance complete
         let allAccountedFor = attendanceManager.allCheckedOut(childIds: children.map { $0.id })
         let presentOrAbsent = children.filter {
             let s = attendanceManager.state(for: $0.id)
@@ -67,7 +61,7 @@ struct EndOfDayChecklistView: View {
             icon: "person.badge.clock"
         ))
 
-        // 2. All Children Checked Out (for end of day)
+        // 2. All children collected
         items.append(ChecklistItem(
             title: "All Children Collected",
             status: allAccountedFor ? .complete : .warning,
@@ -75,7 +69,7 @@ struct EndOfDayChecklistView: View {
             icon: "arrow.right.circle"
         ))
 
-        // 3. Wellbeing Checks
+        // 3. Wellbeing checks
         let wellbeingEntries = todayEntries.filter { $0.type == .wellbeing }
         let childrenWithWellbeing = Set(wellbeingEntries.map { $0.childId })
         let activeChildren = children.filter { attendanceManager.state(for: $0.id) != .absent }
@@ -87,7 +81,7 @@ struct EndOfDayChecklistView: View {
             icon: "heart.fill"
         ))
 
-        // 4. Meals Logged
+        // 4. Meals logged
         let mealEntries = todayEntries.filter { $0.type == .meal }
         let childrenWithMeals = Set(mealEntries.map { $0.childId })
         let mealsComplete = activeChildren.allSatisfy { childrenWithMeals.contains($0.id) }
@@ -98,7 +92,7 @@ struct EndOfDayChecklistView: View {
             icon: "fork.knife"
         ))
 
-        // 5. Nappy Checks (under-3s only)
+        // 5. Nappy checks (under-3s)
         let under3s = activeChildren.filter { $0.dateOfBirth.ageInYears < 3 }
         if !under3s.isEmpty {
             let nappyEntries = todayEntries.filter { $0.type == .nappy }
@@ -112,7 +106,7 @@ struct EndOfDayChecklistView: View {
             ))
         }
 
-        // 6. Sleep Logged (under-3s)
+        // 6. Sleep logged (under-3s)
         if !under3s.isEmpty {
             let sleepEntries = todayEntries.filter { $0.type == .sleep }
             let childrenWithSleep = Set(sleepEntries.map { $0.childId })
@@ -125,7 +119,7 @@ struct EndOfDayChecklistView: View {
             ))
         }
 
-        // 7. Incidents Countersigned
+        // 7. Incidents countersigned
         let todayIncidents = dataManager.incidents.filter { cal.isDateInToday($0.dateTime) }
         if !todayIncidents.isEmpty {
             let allCountersigned = todayIncidents.allSatisfy {
@@ -139,7 +133,7 @@ struct EndOfDayChecklistView: View {
             ))
         }
 
-        // 8. Activities Logged
+        // 8. Activities logged
         let activityEntries = todayEntries.filter { $0.type == .activity }
         items.append(ChecklistItem(
             title: "Activities Documented",
@@ -151,12 +145,14 @@ struct EndOfDayChecklistView: View {
         return items
     }
 
-    private var completionPercentage: Double {
-        let complete = checklistItems.filter { $0.status == .complete }.count
-        return checklistItems.isEmpty ? 0 : Double(complete) / Double(checklistItems.count)
+    private func completionPercentage(for items: [ChecklistItem]) -> Double {
+        let complete = items.filter { $0.status == .complete }.count
+        return items.isEmpty ? 0 : Double(complete) / Double(items.count)
     }
 
     var body: some View {
+        let items = checklistItems
+
         NavigationStack {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 24) {
@@ -164,16 +160,16 @@ struct EndOfDayChecklistView: View {
                     headerSection
 
                     // MARK: Progress Ring
-                    progressSection
+                    progressSection(items: items)
 
                     // MARK: Checklist Items
                     VStack(spacing: 10) {
-                        ForEach(checklistItems) { item in
+                        ForEach(items) { item in
                             checklistRow(item)
                         }
                     }
 
-                    // MARK: Generate Reports (Simulated)
+                    // MARK: Generate Reports
                     generateReportsButton
 
                     // MARK: Compliance Footer
@@ -213,17 +209,19 @@ struct EndOfDayChecklistView: View {
     }
 
     // MARK: - Progress Section
-    private var progressSection: some View {
-        VStack(spacing: 14) {
+    private func progressSection(items: [ChecklistItem]) -> some View {
+        let percentage = completionPercentage(for: items)
+
+        return VStack(spacing: 14) {
             ZStack {
                 Circle()
                     .stroke(Color.white.opacity(0.08), lineWidth: 8)
                     .frame(width: 100, height: 100)
 
                 Circle()
-                    .trim(from: 0, to: completionPercentage)
+                    .trim(from: 0, to: percentage)
                     .stroke(
-                        completionPercentage >= 1.0
+                        percentage >= 1.0
                             ? Color(hex: "55EFC4")
                             : Color.ncPrimary,
                         style: StrokeStyle(lineWidth: 8, lineCap: .round)
@@ -232,7 +230,7 @@ struct EndOfDayChecklistView: View {
                     .rotationEffect(.degrees(-90))
 
                 VStack(spacing: 2) {
-                    Text("\(Int(completionPercentage * 100))%")
+                    Text("\(Int(percentage * 100))%")
                         .font(.system(size: 24, weight: .bold, design: .rounded))
                         .foregroundStyle(Color.ncText)
                     Text("Complete")
@@ -241,8 +239,8 @@ struct EndOfDayChecklistView: View {
                 }
             }
 
-            let complete = checklistItems.filter { $0.status == .complete }.count
-            Text("\(complete) of \(checklistItems.count) items complete")
+            let complete = items.filter { $0.status == .complete }.count
+            Text("\(complete) of \(items.count) items complete")
                 .font(.system(size: 13, weight: .medium, design: .rounded))
                 .foregroundStyle(Color.ncTextSec)
         }
@@ -253,7 +251,7 @@ struct EndOfDayChecklistView: View {
                 .fill(Color.ncCard)
                 .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
         )
-        .accessibilityLabel("End of day checklist progress: \(Int(completionPercentage * 100)) percent complete")
+        .accessibilityLabel("End of day checklist progress: \(Int(percentage * 100)) percent complete")
     }
 
     // MARK: - Checklist Row

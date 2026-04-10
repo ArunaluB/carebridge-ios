@@ -43,15 +43,19 @@ struct SettingsView: View {
                     
                     // Compliance
                     settingsSection(title: "Compliance") {
-                        staticRow(icon: "lock.shield.fill", iconColor: .ncPrimary, title: "UK GDPR", value: "Active")
-                        staticRow(icon: "checkmark.seal.fill", iconColor: .ncSuccess, title: "EYFS 2024", value: "Compliant")
-                        staticRow(icon: "doc.text.fill", iconColor: .ncWarning, title: "Data Retention", value: "Automated")
+                        staticRow(icon: "lock.shield.fill", iconColor: .ncPrimary, title: "UK GDPR", value: "MVP aligned")
+                        staticRow(icon: "checkmark.seal.fill", iconColor: .ncSuccess, title: "EYFS 2024", value: "Design aligned")
+                        staticRow(icon: "doc.text.fill", iconColor: .ncWarning, title: "Data Retention", value: "Policy documented")
                     }
                     
                     // Data
                     settingsSection(title: "Data Management") {
+                        staticRow(icon: "externaldrive.fill", iconColor: .ncPrimary, title: "Storage Mode", value: dataManager.persistenceMode)
                         actionRow(icon: "arrow.counterclockwise", iconColor: .ncWarning, title: "Reset to Sample Data") {
                             showResetConfirm = true
+                        }
+                        if let warning = dataManager.persistenceWarning {
+                            staticRow(icon: "exclamationmark.triangle.fill", iconColor: .ncWarning, title: "Storage Warning", value: warning)
                         }
                     }
                     
@@ -254,7 +258,7 @@ struct SettingsView: View {
                             .font(.ncTitle(16))
                             .foregroundStyle(Color.ncText)
                         
-                        Text("Designed with UK GDPR data minimisation principles, EYFS 2024 requirements, and RIDDOR-aligned incident reporting. Data is stored locally on-device with no external transmission.")
+                        Text("This MVP is designed to align with UK GDPR data minimisation principles, EYFS 2024 requirements, and RIDDOR-oriented incident documentation. Production-grade compliance requires audited backend controls, access governance, and retention workflows.")
                             .font(.ncBody(14))
                             .foregroundStyle(Color.ncTextSec)
                             .lineSpacing(3)
@@ -270,7 +274,7 @@ struct SettingsView: View {
                             techRow("Framework", "SwiftUI")
                             techRow("Architecture", "MVVM")
                             techRow("Min iOS", "17.0")
-                            techRow("Persistence", "JSON + UserDefaults")
+                            techRow("Persistence", dataManager.persistenceMode)
                             techRow("Charts", "Swift Charts")
                             techRow("Dependencies", "Native only — zero 3rd party")
                         }

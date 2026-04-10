@@ -1,8 +1,4 @@
-// NurseryConnect | SleepTrackerManager.swift
-// @Observable service tracking live sleep sessions for children.
-// Uses ONE shared timer for performance — avoids per-child Timer.publish overhead.
-// Creates/updates DiaryEntry with nil sleepEndTime for in-progress sleeps.
-// Compliant with EYFS 2024 Section 3.60 — sleep and rest period monitoring.
+// Tracks active sleep sessions and syncs them into diary entries.
 
 import Foundation
 import SwiftUI
@@ -13,10 +9,10 @@ import SwiftUI
 class SleepTrackerManager {
     static let shared = SleepTrackerManager()
 
-    /// Maps childId → sleep start time for currently active sleep sessions.
+    /// Active sleep start times keyed by child ID.
     var activeSleepSessions: [UUID: Date] = [:]
 
-    /// Maps childId → DiaryEntry.id for the sleep entry to update on wake.
+    /// Diary entry IDs keyed by child ID for update-on-wake.
     var sleepEntryIds: [UUID: UUID] = [:]
 
     // MARK: - Query
@@ -37,7 +33,7 @@ class SleepTrackerManager {
         activeSleepSessions.count
     }
 
-    /// Returns formatted duration string: "42 min" or "1h 3min"
+    /// Returns "42 min" or "1h 3min".
     func sleepDuration(for childId: UUID, now: Date = Date()) -> String {
         guard let start = activeSleepSessions[childId] else { return "—" }
         let elapsed = now.timeIntervalSince(start)
@@ -52,7 +48,7 @@ class SleepTrackerManager {
         }
     }
 
-    /// Returns formatted live timer string: "00:42:17"
+    /// Returns live timer text in HH:mm:ss.
     func liveTimerString(for childId: UUID, now: Date = Date()) -> String {
         guard let start = activeSleepSessions[childId] else { return "00:00:00" }
         let elapsed = Int(now.timeIntervalSince(start))
@@ -64,7 +60,7 @@ class SleepTrackerManager {
 
     // MARK: - Start Sleep
 
-    /// Records sleep start. Creates a DiaryEntry with endTime = nil (in progress).
+    /// Starts a sleep and creates an in-progress diary entry.
     func startSleep(for childId: UUID, dataManager: DataManager) {
         let startTime = Date()
         activeSleepSessions[childId] = startTime
@@ -87,8 +83,7 @@ class SleepTrackerManager {
 
     // MARK: - End Sleep
 
-    /// Ends sleep. Updates the DiaryEntry with endTime and computed duration.
-    /// Returns the duration string for display in toast.
+    /// Ends sleep, updates diary entry, and returns duration for UI.
     @discardableResult
     func endSleep(for childId: UUID, dataManager: DataManager) -> String {
         guard let startTime = activeSleepSessions[childId] else { return "" }
@@ -97,7 +92,6 @@ class SleepTrackerManager {
         let durationMinutes = Int(endTime.timeIntervalSince(startTime) / 60)
         let durationStr = sleepDuration(for: childId, now: endTime)
 
-        // Update the diary entry
         if let entryId = sleepEntryIds[childId],
            let entryIndex = dataManager.diaryEntries.firstIndex(where: { $0.id == entryId }) {
             dataManager.diaryEntries[entryIndex].sleepEndTime = endTime
@@ -106,7 +100,6 @@ class SleepTrackerManager {
             dataManager.save()
         }
 
-        // Clean up tracking
         activeSleepSessions.removeValue(forKey: childId)
         sleepEntryIds.removeValue(forKey: childId)
 

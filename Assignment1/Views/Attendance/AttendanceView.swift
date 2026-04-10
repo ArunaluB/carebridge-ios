@@ -1,12 +1,4 @@
-// NurseryConnect | AttendanceView.swift
-// Full attendance management screen with summary bar, per-child state cards,
-// and check-in/check-out/mark-absent actions.
-// Compliant with EYFS 2024 Section 3.64 — attendance and registration requirements.
-//
-// STATE MACHINE: Expected → Checked In → Checked Out | Expected → Absent
-// Check-in is idempotent — updates existing record for same child + date.
-//
-// DESIGN: Gestalt grouping; Fitts's Law ≥ 44pt; Nielsen visibility of system status.
+// Attendance screen for check-in, check-out, and absence workflows.
 
 import SwiftUI
 
@@ -95,25 +87,25 @@ struct AttendanceView: View {
     // MARK: - Summary Bar
     private var summaryBar: some View {
         HStack(spacing: 0) {
-            summaryChip(
+            AttendanceSummaryChipView(
                 value: "\(attendanceManager.presentCount)",
                 label: "Present",
                 color: Color(hex: "55EFC4"),
                 icon: "checkmark.circle.fill"
             )
-            summaryChip(
+            AttendanceSummaryChipView(
                 value: "\(attendanceManager.expectedCount)",
                 label: "Expected",
                 color: Color(hex: "F4A261"),
                 icon: "clock.fill"
             )
-            summaryChip(
+            AttendanceSummaryChipView(
                 value: "\(attendanceManager.absentCount)",
                 label: "Absent",
                 color: Color(hex: "FF6B6B"),
                 icon: "xmark.circle.fill"
             )
-            summaryChip(
+            AttendanceSummaryChipView(
                 value: "\(attendanceManager.checkedOutCount)",
                 label: "Left",
                 color: Color.gray,
@@ -127,22 +119,6 @@ struct AttendanceView: View {
                 .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
         )
         .accessibilityLabel("Attendance summary: \(attendanceManager.presentCount) present, \(attendanceManager.expectedCount) expected, \(attendanceManager.absentCount) absent, \(attendanceManager.checkedOutCount) checked out")
-    }
-
-    private func summaryChip(value: String, label: String, color: Color, icon: String) -> some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(color)
-            Text(value)
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.ncText)
-            Text(label)
-                .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(Color.ncTextSec)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
     }
 
     // MARK: - Attendance Card
@@ -235,7 +211,7 @@ struct AttendanceView: View {
 
                 if actionMode == .checkIn {
                     checkInForm
-                    confirmButton("Check In \(child.displayName)") {
+                    AttendanceConfirmButton(title: "Check In \(child.displayName)", color: .ncPrimary) {
                         guard !droppedOffBy.isEmpty else {
                             toast = ToastData(type: .warning, message: "Please enter who dropped off \(child.displayName)")
                             return
@@ -247,7 +223,7 @@ struct AttendanceView: View {
                     }
                 } else {
                     absentForm
-                    confirmButton("Mark \(child.displayName) Absent", color: Color(hex: "FF6B6B")) {
+                    AttendanceConfirmButton(title: "Mark \(child.displayName) Absent", color: Color(hex: "FF6B6B")) {
                         guard !absenceReason.isEmpty else {
                             toast = ToastData(type: .warning, message: "Please enter a reason for absence")
                             return
@@ -262,7 +238,7 @@ struct AttendanceView: View {
             case .checkedIn:
                 // Can check out
                 checkOutForm
-                confirmButton("Check Out \(child.displayName)", color: Color.gray) {
+                AttendanceConfirmButton(title: "Check Out \(child.displayName)", color: Color.gray) {
                     guard !collectedBy.isEmpty else {
                         toast = ToastData(type: .warning, message: "Please enter who collected \(child.displayName)")
                         return
@@ -336,7 +312,7 @@ struct AttendanceView: View {
     // MARK: - Check In Form
     private var checkInForm: some View {
         VStack(alignment: .leading, spacing: 12) {
-            formField(title: "Dropped off by", placeholder: "e.g. Mrs Thompson (Mum)", text: $droppedOffBy)
+            AttendanceFormField(title: "Dropped off by", placeholder: "e.g. Mrs Thompson (Mum)", text: $droppedOffBy)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Arrival Mood")
@@ -368,14 +344,14 @@ struct AttendanceView: View {
                 }
             }
 
-            formField(title: "Parent notes (optional)", placeholder: "Any notes from parent...", text: $parentNotes)
+            AttendanceFormField(title: "Parent notes (optional)", placeholder: "Any notes from parent...", text: $parentNotes)
         }
     }
 
     // MARK: - Check Out Form
     private var checkOutForm: some View {
         VStack(alignment: .leading, spacing: 12) {
-            formField(title: "Collected by", placeholder: "e.g. Mrs Thompson (Mum)", text: $collectedBy)
+            AttendanceFormField(title: "Collected by", placeholder: "e.g. Mrs Thompson (Mum)", text: $collectedBy)
 
             Toggle(isOn: $collectorAuthorised) {
                 HStack(spacing: 8) {
@@ -403,53 +379,15 @@ struct AttendanceView: View {
                 )
             }
 
-            formField(title: "Handover notes (optional)", placeholder: "Day summary for parent...", text: $handoverNotes)
+            AttendanceFormField(title: "Handover notes (optional)", placeholder: "Day summary for parent...", text: $handoverNotes)
         }
     }
 
     // MARK: - Absent Form
     private var absentForm: some View {
         VStack(alignment: .leading, spacing: 12) {
-            formField(title: "Reason for absence", placeholder: "e.g. Unwell (cold)", text: $absenceReason)
+            AttendanceFormField(title: "Reason for absence", placeholder: "e.g. Unwell (cold)", text: $absenceReason)
         }
-    }
-
-    // MARK: - Form Helpers
-    private func formField(title: String, placeholder: String, text: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.ncTextSec)
-                .textCase(.uppercase)
-                .tracking(0.5)
-
-            TextField(placeholder, text: text)
-                .font(.system(size: 14))
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.white.opacity(0.06))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                        )
-                )
-        }
-    }
-
-    private func confirmButton(_ title: String, color: Color = .ncPrimary, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(title)
-                .font(.system(size: 15, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background(
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(color)
-                )
-        }
-        .accessibilityLabel(title)
     }
 
     private func resetFormFields() {

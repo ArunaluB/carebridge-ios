@@ -1,7 +1,4 @@
-// NurseryConnect | IncidentDetailView.swift
-// Full redesign: visual body map, same-day notification timer, workflow timeline,
-// RIDDOR compliance footer, and parent acknowledgement workflow.
-// Compliant with EYFS 2024, RIDDOR 2013, Children Act 1989.
+// Incident detail with timeline, body map, and acknowledgement workflow.
 
 import SwiftUI
 import Combine
@@ -278,7 +275,7 @@ struct IncidentDetailView: View {
 
     // MARK: - Date & Time
     private var dateTimeSection: some View {
-        detailCard(icon: "clock.fill", iconColor: Color.ncPrimary, title: "Date & Time") {
+        IncidentDetailCard(icon: "clock.fill", iconColor: Color.ncPrimary, title: "Date & Time") {
             VStack(alignment: .leading, spacing: 4) {
                 Text(localIncident.dateTime.fullDateTimeString)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
@@ -293,7 +290,7 @@ struct IncidentDetailView: View {
 
     // MARK: - Category & Location
     private var categoryLocationSection: some View {
-        detailCard(icon: "mappin.circle.fill", iconColor: Color.ncWarning, title: "Location") {
+        IncidentDetailCard(icon: "mappin.circle.fill", iconColor: Color.ncWarning, title: "Location") {
             Text(localIncident.location)
                 .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(Color.ncText)
@@ -303,7 +300,7 @@ struct IncidentDetailView: View {
 
     // MARK: - Description
     private var descriptionSection: some View {
-        detailCard(icon: "doc.text.fill", iconColor: Color(hex: "A29BFE"), title: "Description") {
+        IncidentDetailCard(icon: "doc.text.fill", iconColor: Color(hex: "A29BFE"), title: "Description") {
             Text(localIncident.description)
                 .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(Color.ncText)
@@ -313,7 +310,7 @@ struct IncidentDetailView: View {
 
     // MARK: - Action Taken
     private var actionTakenSection: some View {
-        detailCard(icon: "cross.case.fill", iconColor: Color.ncSecondary, title: "Immediate Action Taken") {
+        IncidentDetailCard(icon: "cross.case.fill", iconColor: Color.ncSecondary, title: "Immediate Action Taken") {
             Text(localIncident.immediateActionTaken)
                 .font(.system(size: 14, weight: .regular))
                 .foregroundStyle(Color.ncText)
@@ -441,7 +438,7 @@ struct IncidentDetailView: View {
     @ViewBuilder
     private var witnessesSection: some View {
         if !localIncident.witnesses.isEmpty {
-            detailCard(icon: "person.2.fill", iconColor: Color(hex: "74B9FF"), title: "Witnesses") {
+            IncidentDetailCard(icon: "person.2.fill", iconColor: Color(hex: "74B9FF"), title: "Witnesses") {
                 VStack(alignment: .leading, spacing: 6) {
                     ForEach(localIncident.witnesses, id: \.self) { witness in
                         HStack(spacing: 8) {
@@ -471,19 +468,19 @@ struct IncidentDetailView: View {
             }
 
             VStack(alignment: .leading, spacing: 0) {
-                workflowStep(
+                IncidentWorkflowStepRow(
                     title: "Submitted",
                     subtitle: localIncident.submittedAt?.fullDateTimeString,
                     isCompleted: localIncident.submittedAt != nil,
                     isFirst: true
                 )
-                workflowStep(
+                IncidentWorkflowStepRow(
                     title: "Manager Reviewed",
                     subtitle: localIncident.reviewedAt?.fullDateTimeString ?? "Pending review",
                     isCompleted: localIncident.reviewedAt != nil,
                     isFirst: false
                 )
-                workflowStep(
+                IncidentWorkflowStepRow(
                     title: "Countersigned",
                     subtitle: localIncident.countersignedAt != nil
                         ? "\(localIncident.reviewerName ?? "Manager") · \(localIncident.countersignedAt?.fullDateTimeString ?? "")"
@@ -491,13 +488,13 @@ struct IncidentDetailView: View {
                     isCompleted: localIncident.countersignedAt != nil,
                     isFirst: false
                 )
-                workflowStep(
+                IncidentWorkflowStepRow(
                     title: "Parent Notified",
                     subtitle: localIncident.parentNotifiedAt?.fullDateTimeString ?? "Not yet notified",
                     isCompleted: localIncident.parentNotifiedAt != nil,
                     isFirst: false
                 )
-                workflowStep(
+                IncidentWorkflowStepRow(
                     title: "Parent Acknowledged",
                     subtitle: localIncident.acknowledgedAt?.fullDateTimeString ?? "Awaiting acknowledgement",
                     isCompleted: localIncident.acknowledgedAt != nil,
@@ -516,57 +513,6 @@ struct IncidentDetailView: View {
             RoundedRectangle(cornerRadius: 16)
                 .stroke(Color.white.opacity(0.06), lineWidth: 1)
         )
-    }
-
-    // MARK: - Workflow Step
-    private func workflowStep(title: String, subtitle: String?, isCompleted: Bool, isFirst: Bool, isLast: Bool = false) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            // Timeline dot + line
-            VStack(spacing: 0) {
-                if !isFirst {
-                    Rectangle()
-                        .fill(isCompleted ? Color.ncPrimary.opacity(0.4) : Color.white.opacity(0.1))
-                        .frame(width: 2, height: 12)
-                }
-
-                ZStack {
-                    if isCompleted {
-                        Circle()
-                            .fill(Color.ncPrimary)
-                            .frame(width: 20, height: 20)
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.white)
-                    } else {
-                        Circle()
-                            .stroke(Color.white.opacity(0.2), style: StrokeStyle(lineWidth: 1.5, dash: [3]))
-                            .frame(width: 20, height: 20)
-                    }
-                }
-
-                if !isLast {
-                    Rectangle()
-                        .fill(isCompleted ? Color.ncPrimary.opacity(0.4) : Color.white.opacity(0.1))
-                        .frame(width: 2, height: 12)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 14, weight: isCompleted ? .semibold : .regular, design: .rounded))
-                    .foregroundStyle(isCompleted ? Color.ncText : Color.ncTextSec)
-
-                if let sub = subtitle {
-                    Text(sub)
-                        .font(.system(size: 11, weight: .regular))
-                        .foregroundStyle(Color.ncTextSec)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .padding(.vertical, 2)
-
-            Spacer()
-        }
     }
 
     // MARK: - Parent Acknowledgement
@@ -619,57 +565,6 @@ struct IncidentDetailView: View {
                             .font(.system(size: 14, weight: .semibold))
                         Text("Simulate: Mark as Parent Acknowledged")
                             .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    }
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 44)
-                    .background(Color.ncPrimary)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .accessibilityLabel("Simulate parent acknowledgement")
-            }
-            .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(Color(hex: "A29BFE").opacity(0.08))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(Color(hex: "A29BFE").opacity(0.2), lineWidth: 1)
-            )
-        } else {
-            // Show simulate notify + acknowledge buttons
-            VStack(spacing: 12) {
-                if localIncident.status == .countersigned {
-                    Button {
-                        simulateParentNotification()
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "bell.fill")
-                                .font(.system(size: 14, weight: .semibold))
-                            Text("Simulate: Notify Parent")
-                                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44)
-                        .background(Color(hex: "A29BFE"))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                    .accessibilityLabel("Simulate parent notification")
-                }
-
-                if localIncident.status == .submitted || localIncident.status == .underReview {
-                    Button {
-                        simulateCountersign()
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "signature")
-                                .font(.system(size: 14, weight: .semibold))
-                            Text("Simulate: Manager Countersign")
-                                .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        }
-                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 44)
                         .background(Color.ncWarning)
@@ -719,36 +614,6 @@ struct IncidentDetailView: View {
         )
     }
 
-    // MARK: - Detail Card Helper
-    private func detailCard<Content: View>(
-        icon: String,
-        iconColor: Color,
-        title: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundStyle(iconColor)
-                Text(title)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundStyle(Color.ncText)
-            }
-            content()
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.ncCard)
-                .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.white.opacity(0.06), lineWidth: 1)
-        )
-    }
 
     // MARK: - Helpers
     private func regionNameFor(_ marker: BodyMapMarker) -> String {

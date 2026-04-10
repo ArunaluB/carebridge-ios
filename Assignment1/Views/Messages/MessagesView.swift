@@ -1,9 +1,4 @@
-// NurseryConnect | MessagesView.swift
-// Read-only message inbox with segmented filter, unread badges, and relative timestamps.
-// MVP limitation: keyworker cannot compose — replies go through manager portal.
-// Compliant with UK GDPR and EYFS parent communication requirements.
-//
-// DESIGN: Nielsen visibility of system status; Gestalt proximity; Fitts's Law ≥ 44pt.
+// Read-only inbox with filters and unread state.
 
 import SwiftUI
 
@@ -131,7 +126,6 @@ struct MessagesView: View {
             HapticManager.lightTap()
         } label: {
             HStack(alignment: .top, spacing: 14) {
-                // Sender avatar
                 senderAvatar(message: message)
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -172,7 +166,6 @@ struct MessagesView: View {
                     }
                 }
 
-                // Unread dot
                 if !message.isRead {
                     Circle()
                         .fill(Color.ncPrimary)

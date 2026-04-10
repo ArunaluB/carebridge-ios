@@ -1,6 +1,4 @@
-// NurseryConnect | IncidentFormView.swift
-// Auto-stamped date/time, Ofsted escalation banner, same-day reminder,
-// integrated body map, and RIDDOR compliance. EYFS 2024 Section 7.4.
+// Incident form with validation, body map markers, and escalation cues.
 
 import SwiftUI
 
@@ -85,10 +83,10 @@ struct IncidentFormView: View {
         }
     }
 
-    // MARK: - Date/Time Section (Non-Editable for consistency)
+    // MARK: - Date/Time Section
     private var dateTimeSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader(icon: "clock.fill", title: "Date & Time", color: Color.ncPrimary)
+            FormSectionHeader(icon: "clock.fill", title: "Date & Time", color: Color.ncPrimary)
 
             HStack(spacing: 10) {
                 Image(systemName: "lock.fill")
@@ -123,7 +121,7 @@ struct IncidentFormView: View {
     // MARK: - Child Selector
     private var childSelectorSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader(icon: "person.fill", title: "Child", color: Color.ncPrimary)
+            FormSectionHeader(icon: "person.fill", title: "Child", color: Color.ncPrimary)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
@@ -176,7 +174,7 @@ struct IncidentFormView: View {
     // MARK: - Category Selector
     private var categorySelectorSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader(icon: "tag.fill", title: "Category", color: Color.ncWarning)
+            FormSectionHeader(icon: "tag.fill", title: "Category", color: Color.ncWarning)
 
             LazyVGrid(columns: [
                 GridItem(.flexible()),
@@ -274,16 +272,16 @@ struct IncidentFormView: View {
     // MARK: - Location
     private var locationSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader(icon: "mappin.circle.fill", title: "Location", color: Color.ncWarning)
-            formTextField("Where did the incident occur?", text: $viewModel.location)
+            FormSectionHeader(icon: "mappin.circle.fill", title: "Location", color: Color.ncWarning)
+            FormTextField(placeholder: "Where did the incident occur?", text: $viewModel.location)
         }
     }
 
     // MARK: - Description
     private var descriptionSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader(icon: "doc.text.fill", title: "Description (min 10 characters)", color: Color(hex: "A29BFE"))
-            formTextEditor(text: $viewModel.description, height: 120)
+            FormSectionHeader(icon: "doc.text.fill", title: "Description (min 10 characters)", color: Color(hex: "A29BFE"))
+            FormTextEditor(text: $viewModel.description, height: 120)
 
             if !viewModel.description.isEmpty {
                 Text("\(viewModel.description.count) characters")
@@ -296,15 +294,15 @@ struct IncidentFormView: View {
     // MARK: - Action Taken
     private var actionTakenSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader(icon: "cross.case.fill", title: "Immediate Action Taken", color: Color.ncSecondary)
-            formTextEditor(text: $viewModel.immediateActionTaken, height: 100)
+            FormSectionHeader(icon: "cross.case.fill", title: "Immediate Action Taken", color: Color.ncSecondary)
+            FormTextEditor(text: $viewModel.immediateActionTaken, height: 100)
         }
     }
 
     // MARK: - Body Map
     private var bodyMapSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            sectionHeader(icon: "figure.stand", title: "Body Map (tap to mark injury)", color: Color(hex: "FF6B6B"))
+            FormSectionHeader(icon: "figure.stand", title: "Body Map (tap to mark injury)", color: Color(hex: "FF6B6B"))
             BodyMapView(
                 markers: $viewModel.bodyMapMarkers,
                 currentSide: $viewModel.bodyMapSide
@@ -316,7 +314,7 @@ struct IncidentFormView: View {
     private var witnessesSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                sectionHeader(icon: "person.2.fill", title: "Witnesses", color: Color(hex: "74B9FF"))
+                FormSectionHeader(icon: "person.2.fill", title: "Witnesses", color: Color(hex: "74B9FF"))
                 Spacer()
                 Button {
                     viewModel.addWitnessField()
@@ -331,7 +329,7 @@ struct IncidentFormView: View {
 
             ForEach(viewModel.witnesses.indices, id: \.self) { index in
                 HStack(spacing: 8) {
-                    formTextField("Witness name", text: $viewModel.witnesses[index])
+                    FormTextField(placeholder: "Witness name", text: $viewModel.witnesses[index])
 
                     if viewModel.witnesses.count > 1 {
                         Button {
@@ -461,48 +459,6 @@ struct IncidentFormView: View {
         .transition(.opacity)
     }
 
-    // MARK: - Form Helpers
-    private func sectionHeader(icon: String, title: String, color: Color) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(color)
-            Text(title)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.ncText)
-        }
-    }
-
-    private func formTextField(_ placeholder: String, text: Binding<String>) -> some View {
-        TextField(placeholder, text: text)
-            .font(.system(size: 14))
-            .padding(12)
-            .frame(minHeight: 44)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.white.opacity(0.06))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-            )
-    }
-
-    private func formTextEditor(text: Binding<String>, height: CGFloat) -> some View {
-        TextEditor(text: text)
-            .font(.system(size: 14))
-            .frame(height: height)
-            .padding(8)
-            .scrollContentBackground(.hidden)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.white.opacity(0.06))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
-            )
-    }
 }
 
 // MARK: - Preview

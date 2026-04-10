@@ -1,15 +1,4 @@
-// NurseryConnect | KeyworkerDashboardView.swift
-// Real dynamic dashboard — all data from DashboardViewModel computed properties.
-// Zero hardcoded values. Live refresh on .onAppear and .entrySaved notification.
-//
-// DESIGN PRINCIPLES APPLIED:
-//   • Gestalt Proximity & Grouping — logical section clusters
-//   • Von Restorff: HIGH priority cards are coral, allergen banner uses red border
-//   • Fitts's Law: all interactive elements ≥ 44pt
-//   • Progressive Disclosure: recommendations only shown when gaps exist
-//   • Miller's Law: max 3 stat chips
-//   • Hick's Law: "Log Now →" pre-fills form type, minimising decision friction
-//   • WCAG 2.1 AA: all interactives have .accessibilityLabel
+// Main keyworker dashboard composed from live view model data.
 
 import SwiftUI
 
@@ -64,12 +53,10 @@ struct KeyworkerDashboardView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
 
-            // Sheet: child profile detail
             .sheet(item: $selectedChildForSheet) { child in
                 ChildProfileView(child: child)
             }
 
-            // Sheet: "Log Now" quick entry
             .sheet(item: $fabRecommendation) { rec in
                 DiaryEntryFormView(
                     viewModel: {
@@ -91,7 +78,6 @@ struct KeyworkerDashboardView: View {
             fabDiaryViewModel.dataManager = dataManager
             viewModel.refresh()
         }
-        // Live refresh when any entry is saved anywhere in the app
         .onReceive(NotificationCenter.default.publisher(for: .entrySaved)) { _ in
             viewModel.refresh()
         }
@@ -119,7 +105,6 @@ struct KeyworkerDashboardView: View {
 
         ToolbarItem(placement: .topBarTrailing) {
             HStack(spacing: 6) {
-                // Messages button
                 Button {
                     appState.showMessagesView = true
                     HapticManager.lightTap()
@@ -143,7 +128,6 @@ struct KeyworkerDashboardView: View {
                 }
                 .accessibilityLabel("Messages. \(messageManager.unreadCount) unread.")
 
-                // Notification bell
                 Button {
                     appState.showNotificationCenter = true
                     HapticManager.lightTap()
@@ -167,7 +151,6 @@ struct KeyworkerDashboardView: View {
                 }
                 .accessibilityLabel("Notifications. \(notificationManager.unreadCount) unread.")
 
-                // Search
                 Button {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         searchVisible.toggle()
@@ -229,19 +212,19 @@ struct KeyworkerDashboardView: View {
     // MARK: - Quick Stats Chips
     private var statsChipsRow: some View {
         HStack(spacing: 12) {
-            statsChip(
+            DashboardStatChipView(
                 icon:  "person.2.fill",
                 value: "\(viewModel.childrenCheckedInToday)",
                 label: "Checked In",
                 color: .ncPrimary
             )
-            statsChip(
+            DashboardStatChipView(
                 icon:  "doc.text.fill",
                 value: "\(viewModel.entriesToday)",
                 label: "Entries Today",
                 color: Color(hex: "A29BFE")
             )
-            statsChip(
+            DashboardStatChipView(
                 icon:  "exclamationmark.triangle.fill",
                 value: "\(viewModel.activeAlerts)",
                 label: "Active Alerts",
@@ -250,34 +233,7 @@ struct KeyworkerDashboardView: View {
         }
     }
 
-    private func statsChip(icon: String, value: String, label: String, color: Color) -> some View {
-        VStack(spacing: 10) {
-            ZStack {
-                Circle().fill(color.opacity(0.14)).frame(width: 42, height: 42)
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(color)
-            }
-            Text(value)
-                .font(.system(size: 24, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.ncText)
-            Text(label)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(Color.ncTextSec)
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 18)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color.ncCard)
-                .shadow(color: .black.opacity(0.07), radius: 12, x: 0, y: 4)
-        )
-        .accessibilityLabel("\(label): \(value)")
-    }
-
     // MARK: - Allergy Alert Section
-    // Shown only when children with allergies had a meal today (Von Restorff)
     @ViewBuilder
     private var allergyAlertSection: some View {
         if !viewModel.allergyAlertItems.isEmpty {
@@ -346,7 +302,6 @@ struct KeyworkerDashboardView: View {
     @ViewBuilder
     private var recommendationsSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            // Section header
             HStack {
                 Image(systemName: viewModel.allRecordsUpToDate
                       ? "checkmark.seal.fill"
@@ -369,11 +324,9 @@ struct KeyworkerDashboardView: View {
                 }
             }
 
-            // Empty state — all complete
             if viewModel.allRecordsUpToDate {
                 allUpToDateCard
             } else {
-                // Priority-ordered recommendation cards
                 ForEach(viewModel.todayRecommendations) { rec in
                     recommendationCard(rec)
                 }
@@ -417,11 +370,9 @@ struct KeyworkerDashboardView: View {
         let tint = rec.priority.tintColor
 
         return HStack(spacing: 14) {
-            // Child avatar with priority indicator dot
             ZStack(alignment: .topTrailing) {
                 ChildAvatar(child: rec.child, size: 46)
 
-                // Priority dot (Von Restorff — HIGH is coral, stands out)
                 Circle()
                     .fill(tint)
                     .frame(width: 12, height: 12)
@@ -429,7 +380,6 @@ struct KeyworkerDashboardView: View {
                     .offset(x: 2, y: -2)
             }
 
-            // Message text
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Image(systemName: rec.priority.icon)
@@ -449,7 +399,6 @@ struct KeyworkerDashboardView: View {
 
             Spacer()
 
-            // Log Now button (Fitts's Law: min 44pt, clear CTA)
             Button {
                 HapticManager.mediumTap()
                 fabRecommendation = rec
@@ -478,7 +427,7 @@ struct KeyworkerDashboardView: View {
                 )
         )
         .shadow(color: tint.opacity(0.08), radius: 8, x: 0, y: 3)
-        // LEFT tint bar (Gestalt — priority grouping at a glance)
+        // Left accent bar by priority.
         .overlay(alignment: .leading) {
             RoundedRectangle(cornerRadius: 4)
                 .fill(tint)
@@ -495,76 +444,36 @@ struct KeyworkerDashboardView: View {
     // MARK: - Quick Actions Grid
     private var quickActionsGrid: some View {
         HStack(spacing: 12) {
-            quickActionButton(
+            DashboardQuickActionButton(
                 icon: "person.badge.clock",
                 label: "Attendance",
                 color: Color(hex: "55EFC4"),
                 badge: "\(attendanceManager.presentCount)/\(dataManager.children.count)"
             ) {
+                HapticManager.lightTap()
                 appState.showAttendanceView = true
             }
 
-            quickActionButton(
+            DashboardQuickActionButton(
                 icon: "checklist",
                 label: "End of Day",
                 color: Color(hex: "A29BFE"),
                 badge: nil
             ) {
+                HapticManager.lightTap()
                 appState.showEndOfDayChecklist = true
             }
 
-            quickActionButton(
+            DashboardQuickActionButton(
                 icon: "message.fill",
                 label: "Messages",
                 color: Color(hex: "74B9FF"),
                 badge: messageManager.unreadCount > 0 ? "\(messageManager.unreadCount)" : nil
             ) {
+                HapticManager.lightTap()
                 appState.showMessagesView = true
             }
         }
-    }
-
-    private func quickActionButton(icon: String, label: String, color: Color, badge: String?, action: @escaping () -> Void) -> some View {
-        Button {
-            HapticManager.lightTap()
-            action()
-        } label: {
-            VStack(spacing: 8) {
-                ZStack(alignment: .topTrailing) {
-                    ZStack {
-                        Circle()
-                            .fill(color.opacity(0.14))
-                            .frame(width: 42, height: 42)
-                        Image(systemName: icon)
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(color)
-                    }
-
-                    if let badge = badge {
-                        Text(badge)
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(.white)
-                            .frame(minWidth: 16, minHeight: 16)
-                            .background(Capsule().fill(Color(hex: "FF6B6B")))
-                            .offset(x: 6, y: -4)
-                    }
-                }
-
-                Text(label)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Color.ncTextSec)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.ncCard)
-                    .shadow(color: .black.opacity(0.05), radius: 8, y: 3)
-            )
-        }
-        .buttonStyle(ScalePressButtonStyle())
-        .accessibilityLabel("\(label)\(badge.map { ". \($0)" } ?? "")")
     }
 
     // MARK: - Sleep Tracker Section
@@ -676,7 +585,6 @@ struct KeyworkerDashboardView: View {
             selectedChildForSheet = child
         } label: {
             VStack(alignment: .leading, spacing: 0) {
-                // Gradient top band
                 ZStack(alignment: .topTrailing) {
                     LinearGradient(
                         colors: [baseColor, deepColor],
@@ -685,14 +593,12 @@ struct KeyworkerDashboardView: View {
                     )
                     .frame(height: 88)
 
-                    // Allergen dot (Von Restorff)
                     if child.hasAllergies {
                         Circle().fill(Color.ncSecondary).frame(width: 12, height: 12)
                             .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
                             .padding(10)
                     }
 
-                    // Overlapping avatar
                     VStack {
                         Spacer()
                         HStack {
@@ -717,9 +623,7 @@ struct KeyworkerDashboardView: View {
                     )
                 )
 
-                // Card body
                 VStack(alignment: .leading, spacing: 8) {
-                    // Name + mood
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(child.displayName)
                             .font(.system(size: 15, weight: .bold, design: .rounded))
@@ -729,29 +633,27 @@ struct KeyworkerDashboardView: View {
                                 .font(.system(size: 13))
                         }
                     }
-                    .padding(.top, 32) // Avatar overlap clearance
+                    .padding(.top, 32)
 
                     Text(child.age + " · " + child.roomAssignment)
                         .font(.system(size: 11))
                         .foregroundStyle(Color.ncTextSec)
 
-                    // Live entry counts
                     Text(viewModel.lastEntryTime(for: child.id))
                         .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(Color.ncPrimary)
 
                     Divider().padding(.vertical, 2)
 
-                    // Mini stats
                     HStack(spacing: 0) {
-                        miniStat(icon: "figure.play", count: summary.activities,
-                                 label: "Activities", color: .ncPrimary)
+                        DashboardMiniStatView(icon: "figure.play", count: summary.activities,
+                                             label: "Activities", color: .ncPrimary)
                         Divider().frame(height: 28)
-                        miniStat(icon: "fork.knife", count: summary.meals,
-                                 label: "Meals", color: Color(hex: "FF9F43"))
+                        DashboardMiniStatView(icon: "fork.knife", count: summary.meals,
+                                             label: "Meals", color: Color(hex: "FF9F43"))
                         Divider().frame(height: 28)
-                        miniStat(icon: "moon.zzz.fill", count: summary.sleeps,
-                                 label: "Sleep", color: Color(hex: "A29BFE"))
+                        DashboardMiniStatView(icon: "moon.zzz.fill", count: summary.sleeps,
+                                             label: "Sleep", color: Color(hex: "A29BFE"))
                     }
                 }
                 .padding(.horizontal, 14)
@@ -773,22 +675,6 @@ struct KeyworkerDashboardView: View {
         .accessibilityLabel(
             "\(child.displayName), \(child.age). Activities: \(summary.activities), Meals: \(summary.meals), Sleep sessions: \(summary.sleeps)"
         )
-    }
-
-    private func miniStat(icon: String, count: Int, label: String, color: Color) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(color)
-            Text("\(count)")
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(Color.ncText)
-            Text(label)
-                .font(.system(size: 8, weight: .medium))
-                .foregroundStyle(Color.ncTextSec)
-        }
-        .frame(maxWidth: .infinity)
-        .accessibilityLabel("\(label): \(count)")
     }
 }
 

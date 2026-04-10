@@ -1,9 +1,4 @@
-// NurseryConnect | TodayMenuCard.swift
-// Collapsible allergen-aware menu card for the dashboard.
-// Displays today's meal schedule and flags allergens for assigned children.
-// Compliant with Section 10.3 (14 major allergens) and EYFS dietary tracking.
-//
-// DESIGN: Collapsible via chevron toggle, Von Restorff red border for allergen meals.
+// Collapsible daily menu card with allergen overlap warnings.
 
 import SwiftUI
 
@@ -24,7 +19,7 @@ struct TodayMenuCard: View {
 
     @State private var isExpanded: Bool = false
 
-    /// Static sample menu — in production, would come from a MenuManager.
+    /// Static sample menu.
     private var todayMenu: [MenuItemData] {
         [
             MenuItemData(

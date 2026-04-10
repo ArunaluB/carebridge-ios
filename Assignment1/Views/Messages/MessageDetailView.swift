@@ -1,7 +1,4 @@
-// NurseryConnect | MessageDetailView.swift
-// Full message detail presented as a sheet.
-// Auto-marks the message as read on appear.
-// Shows sender, role, child context, full body, and MVP limitation note.
+// Message detail sheet with sender context and full message body.
 
 import SwiftUI
 

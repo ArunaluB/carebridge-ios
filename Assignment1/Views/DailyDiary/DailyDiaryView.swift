@@ -1,7 +1,4 @@
-// NurseryConnect | DailyDiaryView.swift
-// Full diary timeline with child selector, wellbeing slots,
-// EYFS area tags, allergen warnings, and timeline visual.
-// EYFS 2024 Section 7.3 — daily diary module.
+// Daily diary timeline with child/date selection and entry actions.
 
 import SwiftUI
 
@@ -50,7 +47,6 @@ struct DailyDiaryView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 4) {
-                        // Summary button
                         Button {
                             showSummary = true
                         } label: {
@@ -61,7 +57,6 @@ struct DailyDiaryView: View {
                         }
                         .accessibilityLabel("View daily summary")
 
-                        // Add entry
                         Button {
                             viewModel.prepareNewEntry(type: .activity)
                             showEntryForm = true
@@ -93,7 +88,6 @@ struct DailyDiaryView: View {
                 viewModel.dataManager = dataManager
             }
             .onReceive(NotificationCenter.default.publisher(for: .entrySaved)) { _ in
-                // Refresh on entry saved
                 let _ = viewModel.todayEntries
             }
             .toast($viewModel.toast)

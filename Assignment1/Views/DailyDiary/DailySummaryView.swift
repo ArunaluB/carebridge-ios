@@ -1,7 +1,4 @@
-// NurseryConnect | DailySummaryView.swift
-// End-of-day digest aligned to daily summary requirements.
-// EYFS coverage chart (Swift Charts), wellbeing timeline, allergen summary,
-// stats grid, and ShareLink for parent communication.
+// End-of-day summary with charts, wellbeing, and share actions.
 
 import SwiftUI
 import Charts
