@@ -119,8 +119,8 @@ class IncidentViewModel {
             errors.append("Please select a child")
         }
         errors.append(contentsOf: FormValidator.validateIncidentForm(
-            description: cleanedDescription,
-            location: cleanedLocation,
+            description: description.trimmingCharacters(in: .whitespacesAndNewlines),
+            location: location.trimmingCharacters(in: .whitespacesAndNewlines),
             actionTaken: immediateActionTaken,
             category: category
         ))
@@ -236,3 +236,4 @@ class IncidentViewModel {
         bodyMapSide = .front
     }
 }
+

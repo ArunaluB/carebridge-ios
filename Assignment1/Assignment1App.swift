@@ -16,9 +16,28 @@ struct Assignment1App: App {
     @State private var onboardingFinished: Bool
     
     init() {
+        let launchArgs = ProcessInfo.processInfo.arguments
+
+        if launchArgs.contains("UITEST_RESET_DATA") {
+            Self.clearPersistedDataForUITests()
+            DataManager.shared.resetToSampleData()
+            AttendanceManager.shared.records = []
+            AttendanceManager.shared.loadSampleData()
+            MessageManager.shared.loadSampleMessages()
+            NotificationManager.shared.loadSampleNotifications()
+        }
+
+        let skipSplash = launchArgs.contains("UITEST_SKIP_SPLASH") || launchArgs.contains("UITEST_MODE")
+        let skipOnboarding = launchArgs.contains("UITEST_SKIP_ONBOARDING") || launchArgs.contains("UITEST_MODE")
+
+        if skipOnboarding {
+            UserDefaults.standard.set(true, forKey: "nc_has_launched_before")
+        }
+
         // Check if onboarding has been shown before
         let hasLaunched = UserDefaults.standard.bool(forKey: "nc_has_launched_before")
-        _onboardingFinished = State(initialValue: hasLaunched)
+        _onboardingFinished = State(initialValue: skipOnboarding || hasLaunched)
+        _splashFinished = State(initialValue: skipSplash)
         
         // Configure navigation bar appearance
         // Configure navigation bar appearance
@@ -44,6 +63,15 @@ struct Assignment1App: App {
         UINavigationBar.appearance().standardAppearance = appearance
         UINavigationBar.appearance().scrollEdgeAppearance = appearance
         UINavigationBar.appearance().compactAppearance = appearance
+    }
+
+    private static func clearPersistedDataForUITests() {
+        UserDefaults.standard.removeObject(forKey: "nc_keyworker")
+        UserDefaults.standard.removeObject(forKey: "nc_children")
+        UserDefaults.standard.removeObject(forKey: "nc_diary_entries")
+        UserDefaults.standard.removeObject(forKey: "nc_incidents")
+        UserDefaults.standard.removeObject(forKey: "nc_attendance_records")
+        UserDefaults.standard.removeObject(forKey: "nc_has_launched_before")
     }
     
     var body: some Scene {
